@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { ConnectButton } from '@rainbow-me/rainbowkit'
+import { ConnectWalletButton } from '@/components/connect-wallet-button'
 
 export function Header() {
   return (
@@ -13,7 +13,7 @@ export function Header() {
           <span className="text-sm font-semibold text-foreground uppercase tracking-widest">Card Top-Up</span>
         </div>
         <div className="flex-shrink-0">
-          <ConnectButton />
+          <ConnectWalletButton />
         </div>
       </div>
     </header>
