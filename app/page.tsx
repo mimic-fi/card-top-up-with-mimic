@@ -1,22 +1,11 @@
 'use client'
 
-import { Header } from '@/components/header'
-import { Form } from '@/components/form'
-import { History } from '@/components/history'
-
 export default function Home() {
   return (
-    <main className="min-h-screen bg-background">
-      <Header />
-      <div className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-          <div className="lg:col-span-2">
-            <Form />
-          </div>
-          <div>
-            <History />
-          </div>
-        </div>
+    <main className="min-h-screen bg-background flex items-center justify-center">
+      <div className="text-center">
+        <h1 className="text-4xl font-bold text-primary mb-4">Card Top-Up</h1>
+        <p className="text-lg text-muted-foreground">Testing render...</p>
       </div>
     </main>
   )
