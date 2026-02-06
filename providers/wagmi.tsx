@@ -24,9 +24,7 @@ export default function WalletProvider({ children, cookies }: Props) {
 
   return (
     <WagmiProvider config={config} initialState={initialState}>
-      <RainbowKitProvider>
-        {children}
-      </RainbowKitProvider>
+      <RainbowKitProvider>{children}</RainbowKitProvider>
     </WagmiProvider>
   )
 }

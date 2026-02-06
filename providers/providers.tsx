@@ -1,6 +1,5 @@
 'use client'
 
-import React from 'react'
 import QueryClientProvider from './react-query'
 import WalletProvider from './wagmi'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -9,9 +8,7 @@ export default function Providers({ children, cookies }: { children: React.React
   return (
     <WalletProvider cookies={cookies}>
       <QueryClientProvider>
-        <TooltipProvider>
-          {children}
-        </TooltipProvider>
+        <TooltipProvider>{children}</TooltipProvider>
       </QueryClientProvider>
     </WalletProvider>
   )
