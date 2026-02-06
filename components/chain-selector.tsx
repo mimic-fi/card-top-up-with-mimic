@@ -53,7 +53,7 @@ export function ChainSelector({
               height={20}
               className="w-5 h-5"
             />
-            <SelectValue />
+            <span>{value.name}</span>
           </div>
         </SelectTrigger>
         <SelectContent>

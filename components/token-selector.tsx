@@ -54,7 +54,7 @@ export function TokenSelector({
               height={20}
               className="w-5 h-5"
             />
-            <SelectValue />
+            <span>{value.symbol}</span>
           </div>
         </SelectTrigger>
         <SelectContent>
