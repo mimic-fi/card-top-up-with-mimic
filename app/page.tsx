@@ -8,81 +8,86 @@ export default function Home() {
   const [isConnected, setIsConnected] = useState(false)
 
   return (
-    <main className="min-h-screen bg-background">
-      <div className="max-w-4xl mx-auto py-8 px-4 flex flex-col gap-8">
-        {/* Header */}
-        <div className="bg-card rounded-lg p-6 border border-border">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold">Mimic Card Top-Up</h1>
+    <main style={{ minHeight: '100vh', padding: '32px 16px', backgroundColor: '#0f0f0f', color: '#ffffff' }}>
+      <div style={{ maxWidth: '960px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '32px' }}>
+        <div style={{ backgroundColor: '#1a1a1a', borderRadius: '8px', padding: '24px', border: '1px solid #333' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h1 style={{ fontSize: '28px', fontWeight: 'bold', margin: 0 }}>Mimic Card Top-Up</h1>
             <button
               onClick={() => setIsConnected(!isConnected)}
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+              style={{
+                padding: '8px 16px',
+                backgroundColor: '#0066cc',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '14px'
+              }}
             >
               {isConnected ? '0x1234...5678' : 'Connect Wallet'}
             </button>
           </div>
         </div>
 
-        {/* Form */}
-        <div className="bg-card rounded-lg p-6 border border-border">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold">Set up your card top-up</h2>
-            <button className="p-2 hover:bg-secondary rounded-md transition-colors">⚙️</button>
+        <div style={{ backgroundColor: '#1a1a1a', borderRadius: '8px', padding: '24px', border: '1px solid #333' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+            <h2 style={{ fontSize: '18px', fontWeight: '600', margin: 0 }}>Set up your card top-up</h2>
+            <button style={{ padding: '8px', backgroundColor: 'transparent', border: 'none', cursor: 'pointer', fontSize: '18px' }}>⚙️</button>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 mb-6">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
             <div>
-              <label className="block text-sm font-medium mb-2">Chain</label>
-              <select className="w-full px-3 py-2 bg-secondary border border-border rounded-md text-foreground">
+              <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: '8px' }}>Chain</label>
+              <select style={{ width: '100%', padding: '8px', backgroundColor: '#0f0f0f', border: '1px solid #333', borderRadius: '4px', color: '#fff' }}>
                 <option>Base</option>
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-2">Token</label>
-              <select className="w-full px-3 py-2 bg-secondary border border-border rounded-md text-foreground">
+              <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: '8px' }}>Token</label>
+              <select style={{ width: '100%', padding: '8px', backgroundColor: '#0f0f0f', border: '1px solid #333', borderRadius: '4px', color: '#fff' }}>
                 <option>USDC</option>
               </select>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 mb-6">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
             <div>
-              <label className="block text-sm font-medium mb-2">Target Limit (USD)</label>
+              <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: '8px' }}>Target Limit (USD)</label>
               <input
                 type="number"
                 placeholder="100"
                 value={threshold}
                 onChange={(e) => setThreshold(e.target.value)}
-                className="w-full px-3 py-2 bg-secondary border border-border rounded-md text-foreground placeholder:text-muted-foreground"
+                style={{ width: '100%', padding: '8px', backgroundColor: '#0f0f0f', border: '1px solid #333', borderRadius: '4px', color: '#fff' }}
               />
-              <p className="text-xs text-muted-foreground mt-2">Triggers top-up when balance falls below this amount</p>
+              <p style={{ fontSize: '12px', color: '#999', marginTop: '8px' }}>Triggers top-up when balance falls below this amount</p>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-2">Top-up Buffer (USD)</label>
+              <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: '8px' }}>Top-up Buffer (USD)</label>
               <input
                 type="number"
                 placeholder="50"
                 value={topUpOverThreshold}
                 onChange={(e) => setTopUpOverThreshold(e.target.value)}
-                className="w-full px-3 py-2 bg-secondary border border-border rounded-md text-foreground placeholder:text-muted-foreground"
+                style={{ width: '100%', padding: '8px', backgroundColor: '#0f0f0f', border: '1px solid #333', borderRadius: '4px', color: '#fff' }}
               />
-              <p className="text-xs text-muted-foreground mt-2">Additional amount to top-up beyond the target limit</p>
+              <p style={{ fontSize: '12px', color: '#999', marginTop: '8px' }}>Additional amount to top-up beyond the target limit</p>
             </div>
           </div>
 
-          <button className="w-full px-4 py-3 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors font-medium">
+          <button style={{ width: '100%', padding: '12px', backgroundColor: '#0066cc', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '16px', fontWeight: '500' }}>
             Activate top-up
           </button>
 
-          <div className="mt-6 pt-6 border-t border-border text-center text-xs text-muted-foreground">
-            Powered by <a href="https://mimic.fi" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Mimic</a>
+          <div style={{ marginTop: '24px', paddingTop: '24px', borderTop: '1px solid #333', textAlign: 'center', fontSize: '12px', color: '#999' }}>
+            Powered by <a href="https://mimic.fi" target="_blank" rel="noopener noreferrer" style={{ color: '#0066cc', textDecoration: 'none' }}>Mimic</a>
           </div>
         </div>
 
-        {/* History */}
-        <div className="bg-card rounded-lg p-6 border border-border">
-          <h2 className="text-lg font-semibold mb-4">Past Top-Ups</h2>
-          <p className="text-muted-foreground text-sm">{isConnected ? 'No top-ups registered yet' : 'Please connect your wallet'}</p>
+        <div style={{ backgroundColor: '#1a1a1a', borderRadius: '8px', padding: '24px', border: '1px solid #333' }}>
+          <h2 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '16px', margin: 0, paddingBottom: '16px' }}>Past Top-Ups</h2>
+          <p style={{ color: '#999', fontSize: '14px', margin: 0 }}>{isConnected ? 'No top-ups registered yet' : 'Please connect your wallet'}</p>
         </div>
       </div>
     </main>
