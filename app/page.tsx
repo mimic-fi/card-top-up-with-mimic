@@ -6,11 +6,11 @@ import { History } from '@/components/history'
 
 export default function Home() {
   return (
-    <main style={{ minHeight: '100vh', backgroundColor: '#f5f5f5' }}>
+    <main className="min-h-screen bg-background">
       <Header />
-      <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '2rem 1rem' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '2rem' }}>
-          <div style={{ gridColumn: '1 / 3' }}>
+      <div className="container mx-auto px-4 py-8">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+          <div className="lg:col-span-2">
             <Form />
           </div>
           <div>

@@ -1,6 +1,7 @@
 import type React from 'react'
 import type { Metadata } from 'next'
 import Providers from '@/providers/providers'
+import { Toaster } from '@/components/ui/toaster'
 import './globals.css'
 
 interface Props {
@@ -17,6 +18,7 @@ export default function RootLayout({ children }: Props) {
     <html lang="en">
       <body style={{ margin: 0, fontFamily: 'system-ui, -apple-system, sans-serif' }}>
         <Providers>{children}</Providers>
+        <Toaster />
       </body>
     </html>
   )
