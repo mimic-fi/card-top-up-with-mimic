@@ -19,7 +19,6 @@ import { WagmiSigner } from '@/lib/wagmi-signer'
 import { ToastAction } from '@/components/ui/toast'
 import { useSmartAccountCheck } from '@/hooks/use-smart-account-check'
 
-import { Frequency, CRON_SCHEDULES, invest, deactivate, getFrequencyFromSchedule } from '@/lib/invest'
 import { findCurrentTrigger } from '@/lib/functions'
 import { capitalize } from '@/lib/utils'
 
@@ -29,70 +28,88 @@ export function Form() {
   const wagmiConfig = useConfig()
   const signer = new WagmiSigner(address || '', wagmiConfig)
 
-  const [chain, setChain] = useState<Chain>(CHAINS.base)
-  const [token, setToken] = useState<Token>(TOKENS.base.USDC)
-  const [amount, setAmount] = useState('')
+  // Source chain/token selection
+  const [sourceChain, setSourceChain] = useState<Chain>(CHAINS.base)
+  const [sourceToken, setSourceToken] = useState<Token>(TOKENS.base.USDC)
+  
+  // Card top-up thresholds
+  const [threshold, setThreshold] = useState('')
+  const [topUpOverThreshold, setTopUpOverThreshold] = useState('')
+  
+  // Settings dialog fields
+  const [destinationChain, setDestinationChain] = useState<Chain>(CHAINS.base)
+  const [recipientAddress, setRecipientAddress] = useState('')
   const [maxFee, setMaxFee] = useState('0.1')
-  const [frequency, setFrequency] = useState<Frequency>('daily')
+  
   const [isLoading, setIsLoading] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [currentSavingsPlan, setCurrentSavingsPlan] = useState<Trigger | null>(null)
-  const [isLoadingCurrentSavingsPlan, setIsLoadingCurrentSavingsPlan] = useState(false)
-  const { isSmartAccount, isSmartAccountLoading } = useSmartAccountCheck(chain)
-  const isFormDisabled = isLoadingCurrentSavingsPlan || !!currentSavingsPlan
+  const [currentTopUp, setCurrentTopUp] = useState<Trigger | null>(null)
+  const [isLoadingCurrentTopUp, setIsLoadingCurrentTopUp] = useState(false)
+  const { isSmartAccount, isSmartAccountLoading } = useSmartAccountCheck(sourceChain)
+  const isFormDisabled = isLoadingCurrentTopUp || !!currentTopUp
 
   useEffect(() => {
-    const tokens = TOKENS[chain.key]
+    const tokens = TOKENS[sourceChain.key]
     const firstSymbol = Object.keys(tokens ?? {})[0]
-    if (firstSymbol) setToken(tokens[firstSymbol])
-  }, [chain])
+    if (firstSymbol) setSourceToken(tokens[firstSymbol])
+  }, [sourceChain])
 
   useEffect(() => {
-    const fetchCurrentSavingsPlan = async () => {
+    const fetchCurrentTopUp = async () => {
       try {
         if (!isConnected || !address) {
-          setCurrentSavingsPlan(null)
+          setCurrentTopUp(null)
           return
         }
 
-        setIsLoadingCurrentSavingsPlan(true)
+        setIsLoadingCurrentTopUp(true)
         const trigger = await findCurrentTrigger(address)
-        setCurrentSavingsPlan(trigger)
+        setCurrentTopUp(trigger)
       } catch (error) {
-        console.error('Error fetching savings plan trigger', error)
-        setCurrentSavingsPlan(null)
+        console.error('Error fetching card top-up trigger', error)
+        setCurrentTopUp(null)
       } finally {
-        setIsLoadingCurrentSavingsPlan(false)
+        setIsLoadingCurrentTopUp(false)
       }
     }
 
-    fetchCurrentSavingsPlan()
+    fetchCurrentTopUp()
   }, [isConnected, address])
 
   useEffect(() => {
-    if (!currentSavingsPlan) return
+    if (!currentTopUp) return
 
-    const config = currentSavingsPlan.config as unknown as { schedule: string }
-    const frequencyFound = getFrequencyFromSchedule(config.schedule)
-    if (frequencyFound) setFrequency(frequencyFound)
-
-    const inputs = currentSavingsPlan.input
-    setAmount(String(inputs.amount))
+    const inputs = currentTopUp.input
+    setThreshold(String(inputs.threshold))
+    setTopUpOverThreshold(String(inputs.topUpOverThreshold))
     setMaxFee(String(inputs.maxFee))
+    setRecipientAddress(String(inputs.recipient))
 
-    const chain = Object.values(CHAINS).find((chain: Chain) => chain.id == inputs.chainId)
-    if (chain) {
-      setChain(chain)
-      const token = Object.values(TOKENS[chain.key]).find((token: Token) => token.address == inputs.token)
-      if (token) setToken(token)
+    const sourceChain = Object.values(CHAINS).find((chain: Chain) => chain.id == inputs.sourceChainId)
+    if (sourceChain) {
+      setSourceChain(sourceChain)
+      const token = Object.values(TOKENS[sourceChain.key]).find((token: Token) => token.address == inputs.sourceToken)
+      if (token) setSourceToken(token)
     }
-  }, [currentSavingsPlan])
+
+    const destChain = Object.values(CHAINS).find((chain: Chain) => chain.id == inputs.destinationChainId)
+    if (destChain) setDestinationChain(destChain)
+  }, [currentTopUp])
 
   const handleActivate = async () => {
-    if (!amount || Number.parseFloat(amount) <= 0) {
+    if (!threshold || Number.parseFloat(threshold) <= 0) {
       toast({
-        title: 'Invalid Amount',
-        description: 'Please enter a valid amount to invest',
+        title: 'Invalid Target Limit',
+        description: 'Please enter a valid target limit',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    if (!topUpOverThreshold || Number.parseFloat(topUpOverThreshold) <= 0) {
+      toast({
+        title: 'Invalid Top-up Buffer',
+        description: 'Please enter a valid top-up buffer amount',
         variant: 'destructive',
       })
       return
@@ -101,7 +118,16 @@ export function Form() {
     if (!maxFee || Number.parseFloat(maxFee) <= 0) {
       toast({
         title: 'Invalid Max Fee',
-        description: 'Please enter a valid max fee to invest',
+        description: 'Please enter a valid max fee',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    if (!recipientAddress) {
+      toast({
+        title: 'Missing Recipient Address',
+        description: 'Please configure your card account in settings',
         variant: 'destructive',
       })
       return
@@ -109,12 +135,22 @@ export function Form() {
 
     setIsLoading(true)
     try {
-      const params = { chain, token, amount, maxFee, frequency, signer }
-      const trigger = await invest(params)
+      const params = {
+        sourceChain,
+        sourceToken,
+        destinationChain,
+        recipient: recipientAddress,
+        threshold,
+        topUpOverThreshold,
+        maxFee,
+        signer,
+      }
+      // TODO: Call createCardTopUp with params
+      const trigger = { sig: 'test' } as Trigger
 
       toast({
-        title: 'Savings Plan Activated',
-        description: 'Your savings plan has been created successfully',
+        title: 'Top-Up Activated',
+        description: 'Your card top-up has been configured successfully',
         action: (
           <ToastAction
             altText="View"
@@ -125,11 +161,11 @@ export function Form() {
         ),
       })
 
-      setCurrentSavingsPlan(trigger)
+      setCurrentTopUp(trigger)
     } catch (error) {
       toast({
         title: 'Activation Failed',
-        description: error instanceof Error ? error.message : 'Failed to activate savings plan',
+        description: error instanceof Error ? error.message : 'Failed to activate top-up',
         variant: 'destructive',
       })
     } finally {
@@ -138,25 +174,26 @@ export function Form() {
   }
 
   const handleDeactivate = async () => {
-    if (!currentSavingsPlan) return
+    if (!currentTopUp) return
     setIsLoading(true)
 
     try {
-      const params = { trigger: currentSavingsPlan, signer }
-      await deactivate(params)
-
+      const params = { trigger: currentTopUp, signer }
+      // TODO: Call deactivateCardTopUp with params
+      
       toast({
-        title: 'Savings Plan Deactivated',
-        description: 'Your savings plan has been deactivated successfully',
+        title: 'Top-Up Deactivated',
+        description: 'Your card top-up has been deactivated successfully',
       })
 
-      setCurrentSavingsPlan(null)
-      setAmount('')
-      setMaxFee('')
+      setCurrentTopUp(null)
+      setThreshold('')
+      setTopUpOverThreshold('')
+      setRecipientAddress('')
     } catch (error) {
       toast({
         title: 'Deactivation Failed',
-        description: error instanceof Error ? error.message : 'Failed to deactivate savings plan',
+        description: error instanceof Error ? error.message : 'Failed to deactivate top-up',
         variant: 'destructive',
       })
     } finally {
@@ -191,12 +228,12 @@ export function Form() {
           </div>
         )}
 
-        {currentSavingsPlan && (
+        {currentTopUp && (
           <div className="mb-6 p-4 rounded-lg bg-violet-500/10 border border-violet-500/20">
             <p className="text-sm text-violet-700">
-              Current Aave savings plan detected{' '}
+              Current card top-up detected{' '}
               <a
-                href={`https://protocol.mimic.fi/triggers/${currentSavingsPlan.sig}`}
+                href={`https://protocol.mimic.fi/triggers/${currentTopUp.sig}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="underline font-semibold"
@@ -207,10 +244,10 @@ export function Form() {
           </div>
         )}
 
-        {!currentSavingsPlan && (
+        {!currentTopUp && (
           <>
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold">Set up your savings plan on Aave</h2>
+              <h2 className="text-lg font-semibold">Set up your card top-up</h2>
               <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
                 <DialogTrigger asChild>
                   <Button variant="ghost" size="icon">
@@ -219,9 +256,31 @@ export function Form() {
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>Advanced Settings</DialogTitle>
+                    <DialogTitle>Card Settings</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4">
+                    <div>
+                      <Label>Destination Chain</Label>
+                      <div className="mt-2">
+                        <ChainSelector value={destinationChain} onChange={setDestinationChain} />
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        The blockchain where your card account is located
+                      </p>
+                    </div>
+                    <div>
+                      <Label htmlFor="recipient">Recipient Address</Label>
+                      <Input
+                        id="recipient"
+                        placeholder="0x..."
+                        value={recipientAddress}
+                        onChange={(e) => setRecipientAddress(e.target.value)}
+                        className="h-11 bg-secondary/50 border-border font-mono text-sm mt-2"
+                      />
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Your card account address on the destination chain
+                      </p>
+                    </div>
                     <div>
                       <Label htmlFor="maxFee">Max fee</Label>
                       <div className="flex gap-2 mt-2">
@@ -234,10 +293,10 @@ export function Form() {
                           className="h-11 bg-secondary/50 border-border"
                           min="0"
                         />
-                        <span className="flex items-center text-sm text-muted-foreground">{token.symbol}</span>
+                        <span className="flex items-center text-sm text-muted-foreground">{sourceToken.symbol}</span>
                       </div>
                       <p className="text-xs text-muted-foreground mt-2">
-                        Maximum fee you're willing to pay per execution.
+                        Maximum fee you're willing to pay per top-up execution
                       </p>
                     </div>
                   </div>
@@ -250,51 +309,53 @@ export function Form() {
         <div className="grid grid-cols-2 gap-4 mb-4">
           <div>
             <Label>Chain</Label>
-            <ChainSelector value={chain} onChange={setChain} />
+            <ChainSelector value={sourceChain} onChange={setSourceChain} />
           </div>
           <div>
             <Label>Token</Label>
-            <TokenSelector chain={chain} value={token} onChange={setToken} />
+            <TokenSelector chain={sourceChain} value={sourceToken} onChange={setSourceToken} />
           </div>
         </div>
 
-        <div className="mb-6">
-          <Label>Amount</Label>
-
-          <div className="flex gap-2 mt-2">
-            <Input
-              type="number"
-              placeholder="0.00"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              className="h-12 bg-secondary/50 border-border text-lg text-right"
-              disabled={isFormDisabled}
-            />
-            <span className="flex items-center px-3 font-semibold bg-secondary/50 rounded-md border border-border">
-              {token.symbol}
-            </span>
-          </div>
-        </div>
-
-        <div className="mb-6">
-          <Label>Frequency</Label>
-          <div className="flex gap-2 mt-2">
-            {(Object.keys(CRON_SCHEDULES) as Frequency[]).map((f) => (
-              <Button
-                key={f}
-                variant={frequency === f ? 'default' : 'outline'}
-                onClick={() => setFrequency(f)}
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          <div>
+            <Label>Target Limit (USD)</Label>
+            <div className="flex gap-2 mt-2">
+              <Input
+                type="number"
+                placeholder="100"
+                value={threshold}
+                onChange={(e) => setThreshold(e.target.value)}
+                className="h-12 bg-secondary/50 border-border text-lg text-right"
                 disabled={isFormDisabled}
-              >
-                {capitalize(f)}
-              </Button>
-            ))}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              Triggers top-up when balance falls below this amount
+            </p>
+          </div>
+
+          <div>
+            <Label>Top-up Buffer (USD)</Label>
+            <div className="flex gap-2 mt-2">
+              <Input
+                type="number"
+                placeholder="50"
+                value={topUpOverThreshold}
+                onChange={(e) => setTopUpOverThreshold(e.target.value)}
+                className="h-12 bg-secondary/50 border-border text-lg text-right"
+                disabled={isFormDisabled}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              Additional amount to top-up beyond the target limit
+            </p>
           </div>
         </div>
 
-        {currentSavingsPlan ? (
+        {currentTopUp ? (
           <Button className="w-full h-11" onClick={handleDeactivate} disabled={isLoading}>
-            {isLoading ? 'Deactivating...' : 'Deactivate plan'}
+            {isLoading ? 'Deactivating...' : 'Deactivate top-up'}
           </Button>
         ) : (
           <Button
@@ -305,8 +366,11 @@ export function Form() {
               !isConnected ||
               isSmartAccountLoading ||
               !isSmartAccount ||
-              !amount ||
-              Number.parseFloat(amount) <= 0
+              !threshold ||
+              Number.parseFloat(threshold) <= 0 ||
+              !topUpOverThreshold ||
+              Number.parseFloat(topUpOverThreshold) <= 0 ||
+              !recipientAddress
             }
           >
             {isLoading
@@ -317,7 +381,7 @@ export function Form() {
                   ? 'Checking account...'
                   : !isSmartAccount
                     ? 'EIP-7702 required'
-                    : 'Activate plan'}
+                    : 'Activate top-up'}
           </Button>
         )}
 

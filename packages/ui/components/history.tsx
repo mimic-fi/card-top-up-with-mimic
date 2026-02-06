@@ -40,7 +40,7 @@ export function History() {
       <Card>
         <div className="flex items-center justify-center py-8">
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          Loading savings history...
+          Loading top-up history...
         </div>
       </Card>
     )
@@ -50,7 +50,7 @@ export function History() {
     return (
       <Card>
         <div className="py-8 px-4 text-center text-red-500">
-          {error.message ?? 'Failed to load savings history'}
+          {error.message ?? 'Failed to load top-up history'}
         </div>
       </Card>
     )
@@ -60,7 +60,7 @@ export function History() {
     return (
       <Card>
         <div className="py-8 px-4 text-center text-muted-foreground">
-          {isConnected ? 'No savings registered yet' : 'Please connect your wallet'}
+          {isConnected ? 'No top-ups registered yet' : 'Please connect your wallet'}
         </div>
       </Card>
     )
@@ -69,7 +69,7 @@ export function History() {
   return (
     <Card>
       <div className="px-6 py-4 border-b border-border">
-        <h2 className="text-lg font-semibold">Past Savings</h2>
+        <h2 className="text-lg font-semibold">Past Top-Ups</h2>
       </div>
       {executions.map((execution, index) => (
         <div
