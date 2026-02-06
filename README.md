@@ -15,7 +15,6 @@
 <p align="center">
   <a href="#overview">Overview</a> •
   <a href="#scope">Scope</a> •
-  <a href="#scope-and-chain-support">Scope</a> •
   <a href="#setup">Setup</a> •
   <a href="#license">License</a>
 </p>
@@ -56,7 +55,6 @@ This allows a card program to implement top-up policies and user preferences whi
 ## Scope
 
 Mimic supports execution across multiple chains, including cross-chain top-up flows where the funding token and the settlement asset are on different networks. The same top-up model can be applied to other supported networks without changes to execution orchestration.
-============================================================================================================================================================================================================================================================================
 
 This repository demonstrates how to build a card top up system on Ethereum using Mimic as the execution and automation layer.
 
@@ -88,14 +86,6 @@ This example uses Ethereum as the reference chain.
 
 Mimic supports execution across multiple chains, including cross-chain payment flows. The same subscription model applies to other supported networks.
 
->>>>>>> 4071b94 (chore: add readme)
->>>>>>>
->>>>>>
->>>>>
->>>>
->>>
->>
-
 ## Setup
 
 To set up this project you'll need [git](https://git-scm.com) and [yarn](https://classic.yarnpkg.com) installed.
@@ -124,4 +114,3 @@ MIT
 > GitHub [@mimic-fi](https://github.com/mimic-fi) &nbsp;&middot;&nbsp;
 > Twitter [@mimicfi](https://twitter.com/mimicfi) &nbsp;&middot;&nbsp;
 > Discord [mimic](https://discord.mimic.fi)
->
