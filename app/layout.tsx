@@ -1,5 +1,6 @@
 import type React from 'react'
 import type { Metadata } from 'next'
+import { headers } from 'next/headers'
 import Providers from '@/providers/providers'
 import { Toaster } from '@/components/ui/toaster'
 import './globals.css'
@@ -13,11 +14,14 @@ export const metadata: Metadata = {
   description: 'Card auto top-up app powered by Mimic',
 }
 
-export default function RootLayout({ children }: Props) {
+export default async function RootLayout({ children }: Props) {
+  const headersList = await headers()
+  const cookies = headersList.get('cookie')
+
   return (
     <html lang="en">
       <body className="bg-background text-foreground antialiased">
-        <Providers>{children}</Providers>
+        <Providers cookies={cookies}>{children}</Providers>
         <Toaster />
       </body>
     </html>
