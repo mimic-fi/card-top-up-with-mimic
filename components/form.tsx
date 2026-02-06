@@ -283,7 +283,6 @@ export function Form() {
                     step="0.01"
                     min="0"
                     disabled={isFormDisabled}
-                    className="h-11 bg-secondary/50 border-border"
                   />
                   <p className="text-xs text-muted-foreground mt-1">
                     Triggers top-up when balance falls below this amount
@@ -300,7 +299,6 @@ export function Form() {
                     step="0.01"
                     min="0"
                     disabled={isFormDisabled}
-                    className="h-11 bg-secondary/50 border-border"
                   />
                   <p className="text-xs text-muted-foreground mt-1">
                     Additional amount to top-up beyond minimum

@@ -12,9 +12,15 @@ export function Header() {
   return (
     <header className="border-b border-border bg-card">
       <div className="container mx-auto flex items-center justify-between px-4 py-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Card Top-Up</h1>
-          <p className="text-sm text-muted-foreground">Automatic credit card top-ups powered by Mimic</p>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-sm">◆</span>
+            </div>
+            <span className="text-lg font-bold text-foreground">Mimic</span>
+          </div>
+          <div className="h-6 w-px bg-border"></div>
+          <span className="text-sm text-muted-foreground">CARD TOP-UP</span>
         </div>
         <div>
           {isConnected ? (
