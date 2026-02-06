@@ -5,6 +5,7 @@ import { Form } from '@/components/form'
 import { History } from '@/components/history'
 
 export default function Home() {
+  console.log('[v0] Page rendering')
   return (
     <main className="min-h-screen bg-background">
       <Header />

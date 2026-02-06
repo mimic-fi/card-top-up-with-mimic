@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Props) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en">
       <body className="bg-background text-foreground antialiased">
         <Providers>{children}</Providers>
         <Toaster />
