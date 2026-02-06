@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useAccount, useConnect, useDisconnect } from 'wagmi'
 import { injected } from 'wagmi/connectors'
 import { Button } from '@/components/ui/button'
@@ -11,16 +12,9 @@ export function Header() {
 
   return (
     <header className="border-b border-border bg-card">
-      <div className="container mx-auto flex items-center justify-between px-4 py-4">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">◆</span>
-            </div>
-            <span className="text-lg font-bold text-foreground">Mimic</span>
-          </div>
-          <div className="h-6 w-px bg-border"></div>
-          <span className="text-sm text-muted-foreground">CARD TOP-UP</span>
+      <div className="container mx-auto flex items-center justify-between px-4 py-3">
+        <div className="flex items-center gap-4">
+          <Image src="/logo.svg" alt="Mimic" width={140} height={32} className="h-8 w-auto" />
         </div>
         <div>
           {isConnected ? (

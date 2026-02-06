@@ -247,7 +247,7 @@ export function Form() {
           <>
             {/* Source Configuration */}
             <div className="space-y-4">
-              <h3 className="font-semibold text-sm">Funding Source</h3>
+              <h3 className="font-semibold text-sm">Funding Source & Destination</h3>
               <div className="grid grid-cols-2 gap-4">
                 <ChainSelector
                   value={sourceChain}
@@ -255,6 +255,14 @@ export function Form() {
                   disabled={isFormDisabled}
                   label="Source Chain"
                 />
+                <ChainSelector
+                  value={destinationChain}
+                  onChange={setDestinationChain}
+                  disabled={isFormDisabled}
+                  label="Destination Chain"
+                />
+              </div>
+              <div>
                 <TokenSelector
                   value={sourceToken}
                   onChange={setSourceToken}
@@ -264,7 +272,7 @@ export function Form() {
                 />
               </div>
               <p className="text-xs text-muted-foreground">
-                This is where we'll pull funds from for your top-ups
+                Pull funds from the source chain to top-up your card on the destination chain
               </p>
             </div>
 
@@ -283,6 +291,7 @@ export function Form() {
                     step="0.01"
                     min="0"
                     disabled={isFormDisabled}
+                    className="bg-input border-border text-foreground"
                   />
                   <p className="text-xs text-muted-foreground mt-1">
                     Triggers top-up when balance falls below this amount
@@ -297,6 +306,10 @@ export function Form() {
                     value={topUpOverThreshold}
                     onChange={(e) => setTopUpOverThreshold(e.target.value)}
                     step="0.01"
+                    min="0"
+                    disabled={isFormDisabled}
+                    className="bg-input border-border text-foreground"
+                  />
                     min="0"
                     disabled={isFormDisabled}
                   />
