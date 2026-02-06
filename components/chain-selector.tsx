@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { CHAINS, type Chain } from '@/lib/chains'
 import {
   Select,
@@ -14,6 +15,14 @@ interface ChainSelectorProps {
   onChange: (chain: Chain) => void
   disabled?: boolean
   label?: string
+}
+
+const chainLogos: Record<string, string> = {
+  ethereum: '/chains/ethereum.png',
+  arbitrum: '/chains/arbitrum.png',
+  optimism: '/chains/optimism.png',
+  gnosis: '/chains/gnosis.png',
+  base: '/chains/base.webp',
 }
 
 export function ChainSelector({
@@ -35,13 +44,31 @@ export function ChainSelector({
         }}
         disabled={disabled}
       >
-        <SelectTrigger>
-          <SelectValue />
+        <SelectTrigger className="flex items-center gap-2">
+          <div className="flex items-center gap-2">
+            <Image
+              src={chainLogos[value.key] || '/chains/ethereum.png'}
+              alt={value.name}
+              width={20}
+              height={20}
+              className="w-5 h-5"
+            />
+            <SelectValue />
+          </div>
         </SelectTrigger>
         <SelectContent>
           {Object.values(CHAINS).map((chain) => (
-            <SelectItem key={chain.key} value={chain.key}>
-              {chain.name}
+            <SelectItem key={chain.key} value={chain.key} className="flex items-center gap-2">
+              <div className="flex items-center gap-2">
+                <Image
+                  src={chainLogos[chain.key] || '/chains/ethereum.png'}
+                  alt={chain.name}
+                  width={20}
+                  height={20}
+                  className="w-5 h-5"
+                />
+                {chain.name}
+              </div>
             </SelectItem>
           ))}
         </SelectContent>

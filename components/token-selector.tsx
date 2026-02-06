@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { TOKENS, type Token } from '@/lib/tokens'
 import { Chain } from '@/lib/chains'
 import {
@@ -16,6 +17,10 @@ interface TokenSelectorProps {
   chain: Chain
   disabled?: boolean
   label?: string
+}
+
+const tokenLogos: Record<string, string> = {
+  USDC: '/tokens/usdc.png',
 }
 
 export function TokenSelector({
@@ -40,13 +45,31 @@ export function TokenSelector({
         }}
         disabled={disabled}
       >
-        <SelectTrigger>
-          <SelectValue />
+        <SelectTrigger className="flex items-center gap-2">
+          <div className="flex items-center gap-2">
+            <Image
+              src={tokenLogos[value.symbol] || '/tokens/usdc.png'}
+              alt={value.symbol}
+              width={20}
+              height={20}
+              className="w-5 h-5"
+            />
+            <SelectValue />
+          </div>
         </SelectTrigger>
         <SelectContent>
           {Object.entries(chainTokens).map(([symbol, token]) => (
-            <SelectItem key={symbol} value={symbol}>
-              {symbol}
+            <SelectItem key={symbol} value={symbol} className="flex items-center gap-2">
+              <div className="flex items-center gap-2">
+                <Image
+                  src={tokenLogos[symbol] || '/tokens/usdc.png'}
+                  alt={symbol}
+                  width={20}
+                  height={20}
+                  className="w-5 h-5"
+                />
+                {symbol}
+              </div>
             </SelectItem>
           ))}
         </SelectContent>
