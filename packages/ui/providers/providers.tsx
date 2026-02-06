@@ -1,26 +1,15 @@
 'use client'
 
-import React from 'react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { WagmiProvider } from 'wagmi'
-import { mainnet } from 'viem/chains'
-import { createConfig, http } from 'wagmi'
-import { injected } from 'wagmi/connectors'
+import QueryClientProvider from './react-query'
+import WalletProvider from './wagmi'
+import { TooltipProvider } from '@/components/ui/tooltip'
 
-const queryClient = new QueryClient()
-
-const config = createConfig({
-  chains: [mainnet],
-  connectors: [injected()],
-  transports: {
-    [mainnet.id]: http(),
-  },
-})
-
-export default function Providers({ children }: { children: React.ReactNode }) {
+export default function Providers({ children, cookies }: { children: React.ReactNode; cookies: string | null }) {
   return (
-    <WagmiProvider config={config}>
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    </WagmiProvider>
+    <WalletProvider cookies={cookies}>
+      <QueryClientProvider>
+        <TooltipProvider>{children}</TooltipProvider>
+      </QueryClientProvider>
+    </WalletProvider>
   )
 }

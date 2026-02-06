@@ -1,51 +1,30 @@
 'use client'
 
-import { CHAINS, type Chain } from '@/lib/chains'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { CHAINS, Chain, ChainKey } from '@/lib/chains'
 
 interface ChainSelectorProps {
   value: Chain
   onChange: (chain: Chain) => void
-  disabled?: boolean
-  label?: string
 }
 
-export function ChainSelector({
-  value,
-  onChange,
-  disabled = false,
-  label = 'Chain',
-}: ChainSelectorProps) {
+export function ChainSelector({ value, onChange }: ChainSelectorProps) {
   return (
-    <div>
-      <label className="text-sm font-medium text-foreground block mb-2">
-        {label}
-      </label>
-      <Select
-        value={value.key}
-        onValueChange={(key) => {
-          const chain = Object.values(CHAINS).find((c) => c.key === key)
-          if (chain) onChange(chain)
-        }}
-        disabled={disabled}
-      >
-        <SelectTrigger>
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {Object.values(CHAINS).map((chain) => (
-            <SelectItem key={chain.key} value={chain.key}>
-              {chain.name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
+    <Select value={value.key} onValueChange={(chainKey) => onChange(CHAINS[chainKey as ChainKey])}>
+      <SelectTrigger className="w-full">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <div className="px-2 py-1.5">
+          <p className="text-sm font-medium">{value.name}</p>
+        </div>
+
+        {(Object.keys(CHAINS) as ChainKey[]).map((chainKey) => (
+          <SelectItem key={chainKey} value={chainKey}>
+            <span className="text-sm">{CHAINS[chainKey].name}</span>
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   )
 }

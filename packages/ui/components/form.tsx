@@ -1,11 +1,12 @@
 'use client'
 
-import { useAccount } from 'wagmi'
+import { useAccount, useConfig } from 'wagmi'
 import { useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Settings } from 'lucide-react'
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Trigger } from '@mimicprotocol/sdk'
+import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -15,74 +16,83 @@ import { useToast } from '@/hooks/use-toast'
 import { CHAINS, type Chain } from '@/lib/chains'
 import { TOKENS, type Token } from '@/lib/tokens'
 import { WagmiSigner } from '@/lib/wagmi-signer'
-import { useConfig } from 'wagmi'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { AlertTriangle } from 'lucide-react'
+import { ToastAction } from '@/components/ui/toast'
+import { useSmartAccountCheck } from '@/hooks/use-smart-account-check'
+
+import { Frequency, CRON_SCHEDULES, invest, deactivate, getFrequencyFromSchedule } from '@/lib/invest'
+import { findCurrentTrigger } from '@/lib/functions'
+import { capitalize } from '@/lib/utils'
 
 export function Form() {
   const { toast } = useToast()
   const { address, isConnected } = useAccount()
   const wagmiConfig = useConfig()
+  const signer = new WagmiSigner(address || '', wagmiConfig)
 
-  // Form state
-  const [sourceChain, setSourceChain] = useState<Chain>(CHAINS.ethereum)
-  const [sourceToken, setSourceToken] = useState<Token>(TOKENS.ethereum.USDC)
-  const [destinationChain, setDestinationChain] = useState<Chain>(CHAINS.ethereum)
-  const [threshold, setThreshold] = useState('')
-  const [topUpOverThreshold, setTopUpOverThreshold] = useState('')
+  const [chain, setChain] = useState<Chain>(CHAINS.base)
+  const [token, setToken] = useState<Token>(TOKENS.base.USDC)
+  const [amount, setAmount] = useState('')
   const [maxFee, setMaxFee] = useState('0.1')
+  const [frequency, setFrequency] = useState<Frequency>('daily')
   const [isLoading, setIsLoading] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [recipientAddress, setRecipientAddress] = useState('')
-  const [currentTopUp, setCurrentTopUp] = useState(null)
-  const [isLoadingCurrent, setIsLoadingCurrent] = useState(false)
+  const [currentSavingsPlan, setCurrentSavingsPlan] = useState<Trigger | null>(null)
+  const [isLoadingCurrentSavingsPlan, setIsLoadingCurrentSavingsPlan] = useState(false)
+  const { isSmartAccount, isSmartAccountLoading } = useSmartAccountCheck(chain)
+  const isFormDisabled = isLoadingCurrentSavingsPlan || !!currentSavingsPlan
 
-  const isFormDisabled = isLoadingCurrent || !!currentTopUp
-
-  // Update tokens when source chain changes
   useEffect(() => {
-    const tokens = TOKENS[sourceChain.key]
+    const tokens = TOKENS[chain.key]
     const firstSymbol = Object.keys(tokens ?? {})[0]
-    if (firstSymbol) setSourceToken(tokens[firstSymbol])
-  }, [sourceChain])
+    if (firstSymbol) setToken(tokens[firstSymbol])
+  }, [chain])
 
-  // Load current top-up configuration
   useEffect(() => {
-    const loadCurrentTopUp = async () => {
-      if (!isConnected || !address) {
-        setCurrentTopUp(null)
-        return
-      }
-
+    const fetchCurrentSavingsPlan = async () => {
       try {
-        setIsLoadingCurrent(true)
-        // TODO: Fetch current top-up from Mimic API
-        setCurrentTopUp(null)
+        if (!isConnected || !address) {
+          setCurrentSavingsPlan(null)
+          return
+        }
+
+        setIsLoadingCurrentSavingsPlan(true)
+        const trigger = await findCurrentTrigger(address)
+        setCurrentSavingsPlan(trigger)
       } catch (error) {
-        console.error('Error loading top-up', error)
-        setCurrentTopUp(null)
+        console.error('Error fetching savings plan trigger', error)
+        setCurrentSavingsPlan(null)
       } finally {
-        setIsLoadingCurrent(false)
+        setIsLoadingCurrentSavingsPlan(false)
       }
     }
 
-    loadCurrentTopUp()
+    fetchCurrentSavingsPlan()
   }, [isConnected, address])
 
-  const handleActivate = async () => {
-    if (!threshold || Number.parseFloat(threshold) <= 0) {
-      toast({
-        title: 'Invalid Threshold',
-        description: 'Please enter a valid threshold amount',
-        variant: 'destructive',
-      })
-      return
-    }
+  useEffect(() => {
+    if (!currentSavingsPlan) return
 
-    if (!topUpOverThreshold || Number.parseFloat(topUpOverThreshold) <= 0) {
+    const config = currentSavingsPlan.config as unknown as { schedule: string }
+    const frequencyFound = getFrequencyFromSchedule(config.schedule)
+    if (frequencyFound) setFrequency(frequencyFound)
+
+    const inputs = currentSavingsPlan.input
+    setAmount(String(inputs.amount))
+    setMaxFee(String(inputs.maxFee))
+
+    const chain = Object.values(CHAINS).find((chain: Chain) => chain.id == inputs.chainId)
+    if (chain) {
+      setChain(chain)
+      const token = Object.values(TOKENS[chain.key]).find((token: Token) => token.address == inputs.token)
+      if (token) setToken(token)
+    }
+  }, [currentSavingsPlan])
+
+  const handleActivate = async () => {
+    if (!amount || Number.parseFloat(amount) <= 0) {
       toast({
-        title: 'Invalid Top-Up Amount',
-        description: 'Please enter a valid top-up amount',
+        title: 'Invalid Amount',
+        description: 'Please enter a valid amount to invest',
         variant: 'destructive',
       })
       return
@@ -91,16 +101,7 @@ export function Form() {
     if (!maxFee || Number.parseFloat(maxFee) <= 0) {
       toast({
         title: 'Invalid Max Fee',
-        description: 'Please enter a valid max fee',
-        variant: 'destructive',
-      })
-      return
-    }
-
-    if (!recipientAddress) {
-      toast({
-        title: 'Missing Recipient Address',
-        description: 'Please configure your card details in settings',
+        description: 'Please enter a valid max fee to invest',
         variant: 'destructive',
       })
       return
@@ -108,19 +109,27 @@ export function Form() {
 
     setIsLoading(true)
     try {
-      const signer = new WagmiSigner(address || '', wagmiConfig)
+      const params = { chain, token, amount, maxFee, frequency, signer }
+      const trigger = await invest(params)
 
-      // TODO: Call createCardTopUp with parameters
       toast({
-        title: 'Top-Up Activated',
-        description: 'Your card top-up has been configured successfully',
+        title: 'Savings Plan Activated',
+        description: 'Your savings plan has been created successfully',
+        action: (
+          <ToastAction
+            altText="View"
+            onClick={() => window.open(`https://protocol.mimic.fi/triggers/${trigger.sig}`, '_blank')}
+          >
+            View
+          </ToastAction>
+        ),
       })
 
-      setCurrentTopUp({} as any)
+      setCurrentSavingsPlan(trigger)
     } catch (error) {
       toast({
         title: 'Activation Failed',
-        description: error instanceof Error ? error.message : 'Failed to activate top-up',
+        description: error instanceof Error ? error.message : 'Failed to activate savings plan',
         variant: 'destructive',
       })
     } finally {
@@ -129,25 +138,25 @@ export function Form() {
   }
 
   const handleDeactivate = async () => {
-    if (!currentTopUp) return
+    if (!currentSavingsPlan) return
     setIsLoading(true)
 
     try {
-      const signer = new WagmiSigner(address || '', wagmiConfig)
-      // TODO: Call deactivateCardTopUp
+      const params = { trigger: currentSavingsPlan, signer }
+      await deactivate(params)
+
       toast({
-        title: 'Top-Up Deactivated',
-        description: 'Your card top-up has been deactivated',
+        title: 'Savings Plan Deactivated',
+        description: 'Your savings plan has been deactivated successfully',
       })
 
-      setCurrentTopUp(null)
-      setThreshold('')
-      setTopUpOverThreshold('')
-      setRecipientAddress('')
+      setCurrentSavingsPlan(null)
+      setAmount('')
+      setMaxFee('')
     } catch (error) {
       toast({
         title: 'Deactivation Failed',
-        description: error instanceof Error ? error.message : 'Failed to deactivate top-up',
+        description: error instanceof Error ? error.message : 'Failed to deactivate savings plan',
         variant: 'destructive',
       })
     } finally {
@@ -157,199 +166,168 @@ export function Form() {
 
   return (
     <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle>Card Top-Up Configuration</CardTitle>
-            <CardDescription>
-              Set up automatic top-ups for your card
-            </CardDescription>
+      <div className="p-6">
+        {isConnected && !isSmartAccountLoading && !isSmartAccount && (
+          <div className="mb-6 p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+            <p className="text-sm text-yellow-700">
+              This app is only meant to be used with Mimic EIP-7702 smart accounts.{' '}
+              <a href="https://docs.mimic.fi/eip-7702" target="_blank" rel="noopener noreferrer" className="underline">
+                You can upgrade your existing wallet by following{' '}
+                <span className="font-semibold">this guide</span>.
+              </a>
+            </p>
           </div>
-          <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-            <DialogTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <Settings className="h-4 w-4" />
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Card Settings</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="recipient">Destination Chain</Label>
-                  <ChainSelector
-                    value={destinationChain}
-                    onChange={setDestinationChain}
-                    label=""
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    The blockchain where your card account is located
-                  </p>
-                </div>
-                <div>
-                  <Label htmlFor="recipient">Recipient Address</Label>
-                  <Input
-                    id="recipient"
-                    placeholder="0x..."
-                    value={recipientAddress}
-                    onChange={(e) => setRecipientAddress(e.target.value)}
-                    className="font-mono"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Your card account address on the destination chain
-                  </p>
-                </div>
-                <div>
-                  <Label htmlFor="maxFee">Max Fee (USDC)</Label>
-                  <Input
-                    id="maxFee"
-                    type="number"
-                    placeholder="0.1"
-                    value={maxFee}
-                    onChange={(e) => setMaxFee(e.target.value)}
-                    step="0.01"
-                    min="0"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Maximum fee per top-up transaction
-                  </p>
-                </div>
-                <Button onClick={() => setSettingsOpen(false)} className="w-full">
-                  Save Settings
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </CardHeader>
-
-      <CardContent className="space-y-6">
-        {isConnected && isLoadingCurrent && (
-          <Alert>
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Loading</AlertTitle>
-            <AlertDescription>Checking for existing top-up configuration...</AlertDescription>
-          </Alert>
         )}
 
-        {currentTopUp && (
-          <Alert>
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Active Top-Up Detected</AlertTitle>
-            <AlertDescription>
-              You already have an active card top-up. Deactivate it before creating a new one.
-            </AlertDescription>
-          </Alert>
+        {isConnected && !isSmartAccountLoading && isSmartAccount && (
+          <div className="mb-6 p-4 rounded-lg bg-green-500/10 border border-green-500/20">
+            <p className="text-sm text-green-700">Your wallet is a Mimic EIP-7702 smart account.</p>
+          </div>
         )}
 
-        {!currentTopUp && (
+        {isConnected && isSmartAccountLoading && (
+          <div className="mb-6 p-4 rounded-lg bg-blue-500/10 border border-blue-500/20">
+            <p className="text-sm text-blue-700">Checking EIP-7702 delegation ...</p>
+          </div>
+        )}
+
+        {currentSavingsPlan && (
+          <div className="mb-6 p-4 rounded-lg bg-violet-500/10 border border-violet-500/20">
+            <p className="text-sm text-violet-700">
+              Current Aave savings plan detected{' '}
+              <a
+                href={`https://protocol.mimic.fi/triggers/${currentSavingsPlan.sig}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline font-semibold"
+              >
+                view
+              </a>
+            </p>
+          </div>
+        )}
+
+        {!currentSavingsPlan && (
           <>
-            {/* Source Configuration */}
-            <div className="space-y-4">
-              <h3 className="font-semibold text-sm">Funding Source</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <ChainSelector
-                  value={sourceChain}
-                  onChange={setSourceChain}
-                  disabled={isFormDisabled}
-                  label="Source Chain"
-                />
-                <TokenSelector
-                  value={sourceToken}
-                  onChange={setSourceToken}
-                  chain={sourceChain}
-                  disabled={isFormDisabled}
-                  label="Token"
-                />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                This is where we'll pull funds from for your top-ups
-              </p>
-            </div>
-
-            {/* Threshold Configuration */}
-            <div className="space-y-4">
-              <h3 className="font-semibold text-sm">Top-Up Thresholds</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="threshold">Minimum Balance (USD)</Label>
-                  <Input
-                    id="threshold"
-                    type="number"
-                    placeholder="100"
-                    value={threshold}
-                    onChange={(e) => setThreshold(e.target.value)}
-                    step="0.01"
-                    min="0"
-                    disabled={isFormDisabled}
-                    className="h-11 bg-secondary/50 border-border"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Triggers top-up when balance falls below this amount
-                  </p>
-                </div>
-                <div>
-                  <Label htmlFor="topUpOverThreshold">Top-Up Buffer (USD)</Label>
-                  <Input
-                    id="topUpOverThreshold"
-                    type="number"
-                    placeholder="50"
-                    value={topUpOverThreshold}
-                    onChange={(e) => setTopUpOverThreshold(e.target.value)}
-                    step="0.01"
-                    min="0"
-                    disabled={isFormDisabled}
-                    className="h-11 bg-secondary/50 border-border"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Additional amount to top-up beyond minimum
-                  </p>
-                </div>
-              </div>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-semibold">Set up your savings plan on Aave</h2>
+              <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <Settings className="h-4 w-4" />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Advanced Settings</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="maxFee">Max fee</Label>
+                      <div className="flex gap-2 mt-2">
+                        <Input
+                          id="maxFee"
+                          type="number"
+                          placeholder="0.1"
+                          value={maxFee}
+                          onChange={(e) => setMaxFee(e.target.value)}
+                          className="h-11 bg-secondary/50 border-border"
+                          min="0"
+                        />
+                        <span className="flex items-center text-sm text-muted-foreground">{token.symbol}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Maximum fee you're willing to pay per execution.
+                      </p>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
           </>
         )}
 
-        {/* Action Buttons */}
-        <div className="pt-4 border-t border-border">
-          {currentTopUp ? (
-            <Button
-              onClick={handleDeactivate}
-              disabled={isLoading}
-              variant="destructive"
-              className="w-full h-11"
-            >
-              {isLoading ? 'Deactivating...' : 'Deactivate Top-Up'}
-            </Button>
-          ) : (
-            <Button
-              onClick={handleActivate}
-              disabled={isLoading || !isConnected || isFormDisabled}
-              className="w-full h-11"
-            >
-              {isLoading
-                ? 'Activating...'
-                : !isConnected
-                  ? 'Connect wallet'
-                  : 'Activate Top-Up'}
-            </Button>
-          )}
+        <div className="grid grid-cols-2 gap-4 mb-4">
+          <div>
+            <Label>Chain</Label>
+            <ChainSelector value={chain} onChange={setChain} />
+          </div>
+          <div>
+            <Label>Token</Label>
+            <TokenSelector chain={chain} value={token} onChange={setToken} />
+          </div>
         </div>
 
-        {/* Powered by Mimic */}
-        <div className="pt-4 text-center text-xs text-muted-foreground">
-          Powered by{' '}
-          <a
-            href="https://mimic.fi"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline hover:text-foreground"
+        <div className="mb-6">
+          <Label>Amount</Label>
+
+          <div className="flex gap-2 mt-2">
+            <Input
+              type="number"
+              placeholder="0.00"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className="h-12 bg-secondary/50 border-border text-lg text-right"
+              disabled={isFormDisabled}
+            />
+            <span className="flex items-center px-3 font-semibold bg-secondary/50 rounded-md border border-border">
+              {token.symbol}
+            </span>
+          </div>
+        </div>
+
+        <div className="mb-6">
+          <Label>Frequency</Label>
+          <div className="flex gap-2 mt-2">
+            {(Object.keys(CRON_SCHEDULES) as Frequency[]).map((f) => (
+              <Button
+                key={f}
+                variant={frequency === f ? 'default' : 'outline'}
+                onClick={() => setFrequency(f)}
+                disabled={isFormDisabled}
+              >
+                {capitalize(f)}
+              </Button>
+            ))}
+          </div>
+        </div>
+
+        {currentSavingsPlan ? (
+          <Button className="w-full h-11" onClick={handleDeactivate} disabled={isLoading}>
+            {isLoading ? 'Deactivating...' : 'Deactivate plan'}
+          </Button>
+        ) : (
+          <Button
+            className="w-full h-11"
+            onClick={handleActivate}
+            disabled={
+              isLoading ||
+              !isConnected ||
+              isSmartAccountLoading ||
+              !isSmartAccount ||
+              !amount ||
+              Number.parseFloat(amount) <= 0
+            }
           >
+            {isLoading
+              ? 'Activating...'
+              : !isConnected
+                ? 'Connect wallet'
+                : isSmartAccountLoading
+                  ? 'Checking account...'
+                  : !isSmartAccount
+                    ? 'EIP-7702 required'
+                    : 'Activate plan'}
+          </Button>
+        )}
+
+        <div className="mt-4 pt-4 border-t border-border text-xs text-muted-foreground text-center">
+          Powered by{' '}
+          <a href="https://mimic.fi" target="_blank" rel="noopener noreferrer" className="underline">
             Mimic
           </a>
         </div>
-      </CardContent>
+      </div>
     </Card>
   )
 }
