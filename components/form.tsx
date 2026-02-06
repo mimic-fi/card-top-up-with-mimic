@@ -310,9 +310,6 @@ export function Form() {
                     disabled={isFormDisabled}
                     className="bg-input border-border text-foreground"
                   />
-                    min="0"
-                    disabled={isFormDisabled}
-                  />
                   <p className="text-xs text-muted-foreground mt-1">
                     Additional amount to top-up beyond minimum
                   </p>
