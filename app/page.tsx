@@ -1,6 +1,7 @@
 'use client'
-import { Form } from '@/components/form'
+
 import { Header } from '@/components/header'
+import { Form } from '@/components/form'
 import { History } from '@/components/history'
 
 export default function Home() {
