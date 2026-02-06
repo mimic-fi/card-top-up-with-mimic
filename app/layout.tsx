@@ -15,8 +15,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Props) {
   return (
-    <html lang="en">
-      <body style={{ margin: 0, fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+    <html lang="en" className="dark">
+      <body className="bg-background text-foreground antialiased">
         <Providers>{children}</Providers>
         <Toaster />
       </body>
