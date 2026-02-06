@@ -1,14 +1,11 @@
 'use client'
 
-import { useAccount, useConnect } from 'wagmi'
-import { injected } from 'wagmi/connectors'
 import { useState } from 'react'
 
 export default function Home() {
-  const { address, isConnected } = useAccount()
-  const { connect } = useConnect()
   const [threshold, setThreshold] = useState('')
   const [topUpOverThreshold, setTopUpOverThreshold] = useState('')
+  const [isConnected, setIsConnected] = useState(false)
 
   return (
     <main className="min-h-screen bg-background">
@@ -18,10 +15,10 @@ export default function Home() {
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold">Mimic Card Top-Up</h1>
             <button
-              onClick={() => connect({ connector: injected() })}
+              onClick={() => setIsConnected(!isConnected)}
               className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
             >
-              {isConnected ? `${address?.slice(0, 6)}...${address?.slice(-4)}` : 'Connect Wallet'}
+              {isConnected ? '0x1234...5678' : 'Connect Wallet'}
             </button>
           </div>
         </div>
