@@ -59,7 +59,7 @@ export function TokenSelector({
         </SelectTrigger>
         <SelectContent>
           {Object.entries(chainTokens).map(([symbol, token]) => (
-            <SelectItem key={symbol} value={symbol} className="flex items-center gap-2">
+            <SelectItem key={symbol} value={symbol}>
               <div className="flex items-center gap-2">
                 <Image
                   src={tokenLogos[symbol] || '/tokens/usdc.png'}

@@ -58,7 +58,7 @@ export function ChainSelector({
         </SelectTrigger>
         <SelectContent>
           {Object.values(CHAINS).map((chain) => (
-            <SelectItem key={chain.key} value={chain.key} className="flex items-center gap-2">
+            <SelectItem key={chain.key} value={chain.key}>
               <div className="flex items-center gap-2">
                 <Image
                   src={chainLogos[chain.key] || '/chains/ethereum.png'}
