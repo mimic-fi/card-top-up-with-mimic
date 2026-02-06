@@ -14,8 +14,8 @@ interface Props {
 }
 
 export const metadata: Metadata = {
-  title: 'Mimic Aave',
-  description: 'Aave savings app powered by Mimic',
+  title: 'Mimic Card Top-Up',
+  description: 'Card auto top-up powered by Mimic',
   generator: 'v0.app',
   icons: {
     icon: [
