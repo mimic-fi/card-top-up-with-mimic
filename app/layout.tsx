@@ -1,6 +1,5 @@
 import type React from 'react'
 import type { Metadata } from 'next'
-import './globals.css'
 
 interface Props {
   children: React.ReactNode
@@ -14,7 +13,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Props) {
   return (
     <html lang="en">
-      <body>
+      <body style={{ margin: 0, fontFamily: 'sans-serif' }}>
         {children}
       </body>
     </html>
