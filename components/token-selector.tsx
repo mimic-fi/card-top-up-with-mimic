@@ -45,7 +45,7 @@ export function TokenSelector({
         }}
         disabled={disabled}
       >
-        <SelectTrigger className="flex items-center gap-2">
+        <SelectTrigger>
           <div className="flex items-center gap-2">
             <Image
               src={tokenLogos[value.symbol] || '/tokens/usdc.png'}

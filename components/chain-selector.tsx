@@ -44,7 +44,7 @@ export function ChainSelector({
         }}
         disabled={disabled}
       >
-        <SelectTrigger className="flex items-center gap-2">
+        <SelectTrigger>
           <div className="flex items-center gap-2">
             <Image
               src={chainLogos[value.key] || '/chains/ethereum.png'}
