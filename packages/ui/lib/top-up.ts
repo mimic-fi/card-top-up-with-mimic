@@ -1,40 +1,27 @@
-import { fp, Trigger, TriggerType } from '@mimicprotocol/sdk'
+import { fp, Trigger, createExecuteOnceTriggerConfig } from '@mimicprotocol/sdk'
 import type { Chain } from '@/lib/chains'
+import type { Token } from '@/lib/tokens'
 import sdk from '@/lib/sdk'
 import { WagmiSigner } from '@/lib/wagmi-signer'
 import { FUNCTION_CID } from '@/lib/constants'
 import { findCurrentTrigger } from '@/lib/functions'
 
-interface SubscribeParams {
+interface TopUpParams {
   sourceChain: Chain
+  sourceToken: Token
   destinationChain: Chain
-  amount: string
+  destinationToken: Token
+  targetAmount: string
+  thresholdAmount: string
   recipient: string
   maxFee: string
-  frequency: Frequency
+  slippage: string
   signer: WagmiSigner
 }
 
-interface DeactivateParams {
+interface CancelParams {
   trigger: Trigger
   signer: WagmiSigner
-}
-
-export const CRON_SCHEDULES = {
-  minutely: '* * * * *',
-  hourly: '0 * * * *',
-  daily: '0 0 * * *',
-  weekly: '0 0 * * 1', // Monday
-  monthly: '0 0 1 * *', // 1st of every month
-  quarterly: '0 0 1 */3 *', // Jan, Apr, Jul, Oct
-  yearly: '0 0 1 1 *', // Jan 1st
-} as const
-
-export type Frequency = keyof typeof CRON_SCHEDULES
-
-export function getFrequencyFromSchedule(schedule: string): Frequency | null {
-  const entry = Object.entries(CRON_SCHEDULES).find(([, s]) => s === schedule)
-  return entry ? (entry[0] as Frequency) : null
 }
 
 function bumpPatch(version: string): string {
@@ -42,14 +29,28 @@ function bumpPatch(version: string): string {
   return `${major}.${minor}.${Number(patch) + 1}`
 }
 
-export async function deactivate(params: DeactivateParams): Promise<Trigger> {
+export async function cancel(params: CancelParams): Promise<Trigger> {
   const { trigger, signer } = params
   return sdk().triggers.signAndDeactivate(trigger.sig, signer)
 }
 
-export async function subscribe(params: SubscribeParams): Promise<Trigger> {
-  const { sourceChain, destinationChain, amount, recipient, maxFee, frequency, signer } = params
-  const description = `Subscribing ${amount} USDC from ${sourceChain.name} to ${destinationChain.name} ${frequency}`
+export async function topUp(params: TopUpParams): Promise<Trigger> {
+  const {
+    sourceChain,
+    sourceToken,
+    destinationChain,
+    destinationToken,
+    thresholdAmount,
+    targetAmount,
+    recipient,
+    maxFee,
+    slippage,
+    signer,
+  } = params
+
+  let description = `Top up to ${targetAmount} ${destinationToken.symbol} on ${destinationChain.name} when balance drops below ${thresholdAmount} ${destinationToken.symbol}`
+  if (sourceChain.id !== destinationChain.id) description += `. Pay with ${sourceToken.symbol} on ${sourceChain.name}.`
+
   const manifest = await sdk().functions.getManifest(FUNCTION_CID)
   const config = (await findCurrentTrigger(signer.address)) || (await findCurrentTrigger(signer.address, false))
   const version = config ? bumpPatch(config.version) : '0.0.1'
@@ -59,18 +60,17 @@ export async function subscribe(params: SubscribeParams): Promise<Trigger> {
       version,
       manifest,
       description,
-      config: {
-        type: TriggerType.Cron,
-        schedule: CRON_SCHEDULES[frequency],
-        delta: '10m',
-        endDate: 0,
-      },
+      config: createExecuteOnceTriggerConfig(),
       input: {
         sourceChain: sourceChain.id,
+        sourceToken: sourceToken.address,
         destinationChain: destinationChain.id,
-        amountIn: amount,
+        destinationToken: destinationToken.address,
+        thresholdAmount,
+        targetAmount,
         recipient,
         maxFee,
+        slippage,
       },
       executionFeeLimit: fp(1).toString(),
       minValidations: 1,

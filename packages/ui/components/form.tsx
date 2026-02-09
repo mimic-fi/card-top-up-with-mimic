@@ -11,16 +11,17 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ChainSelector } from '@/components/chain-selector'
+import { TokenSelector } from '@/components/token-selector'
 
 import { useToast } from '@/hooks/use-toast'
 import { ToastAction } from '@/components/ui/toast'
 import { CHAINS, type Chain } from '@/lib/chains'
+import { TOKENS, type Token } from '@/lib/tokens'
 import { WagmiSigner } from '@/lib/wagmi-signer'
 import { useSmartAccountCheck } from '@/hooks/use-smart-account-check'
 
-import { type Frequency, CRON_SCHEDULES, subscribe, deactivate, getFrequencyFromSchedule } from '@/lib/subscription'
+import { topUp, cancel } from '@/lib/top-up'
 import { findCurrentTrigger } from '@/lib/functions'
-import { capitalize } from '@/lib/utils'
 
 export function Form() {
   const { toast } = useToast()
@@ -29,64 +30,113 @@ export function Form() {
   const signer = new WagmiSigner(address || '', wagmiConfig)
 
   const [sourceChain, setSourceChain] = useState<Chain>(CHAINS.base)
+  const [sourceToken, setSourceToken] = useState<Token>(TOKENS.base.USDC)
   const [destinationChain, setDestinationChain] = useState<Chain>(CHAINS.base)
-  const [amount, setAmount] = useState('')
+  const [destinationToken, setDestinationToken] = useState<Token>(TOKENS.base.USDT)
+  const [targetAmount, setTargetAmount] = useState('')
+  const [thresholdAmount, setThresholdAmount] = useState('')
   const [recipient, setRecipient] = useState('0xbcE3248eDE29116e4bD18416dcC2DFca668Eeb84')
+  const [slippage, setSlippage] = useState('0.02')
   const [maxFee, setMaxFee] = useState('0.1')
-  const [frequency, setFrequency] = useState<Frequency>('daily')
   const [isLoading, setIsLoading] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [currentSubscription, setCurrentSubscription] = useState<Trigger | null>(null)
-  const [isLoadingCurrentSubscription, setIsLoadingCurrentSubscription] = useState(false)
+  const [currentTopUp, setCurrentTopUp] = useState<Trigger | null>(null)
+  const [isLoadingCurrentTopUp, setIsLoadingCurrentTopUp] = useState(false)
   const { isSmartAccount, isSmartAccountLoading } = useSmartAccountCheck(sourceChain)
-  const isFormDisabled = isLoadingCurrentSubscription || !!currentSubscription
+  const isFormDisabled = isLoadingCurrentTopUp || !!currentTopUp
 
   useEffect(() => {
-    const fetchCurrentSubscription = async () => {
+    const tokens = TOKENS[sourceChain.key]
+    if (!tokens) return
+
+    const stillValid = Object.values(tokens).some((t) => t.address === sourceToken.address)
+    if (stillValid) return
+
+    const firstSymbol = Object.keys(tokens)[0]
+    if (firstSymbol) setSourceToken(tokens[firstSymbol])
+  }, [sourceChain, sourceToken])
+
+  useEffect(() => {
+    const tokens = TOKENS[destinationChain.key]
+    if (!tokens) return
+
+    const stillValid = Object.values(tokens).some((t) => t.address === destinationToken.address)
+    if (stillValid) return
+
+    const firstSymbol = Object.keys(tokens)[0]
+    if (firstSymbol) setDestinationToken(tokens[firstSymbol])
+  }, [destinationChain, destinationToken])
+
+  useEffect(() => {
+    const fetchCurrentTopUp = async () => {
       try {
         if (!isConnected || !address) {
-          setCurrentSubscription(null)
+          setCurrentTopUp(null)
           return
         }
 
-        setIsLoadingCurrentSubscription(true)
+        setIsLoadingCurrentTopUp(true)
         const trigger = await findCurrentTrigger(address)
-        setCurrentSubscription(trigger)
+        setCurrentTopUp(trigger)
       } catch (error) {
-        console.error('Error fetching subscription trigger', error)
-        setCurrentSubscription(null)
+        console.error('Error fetching top-up trigger', error)
+        setCurrentTopUp(null)
       } finally {
-        setIsLoadingCurrentSubscription(false)
+        setIsLoadingCurrentTopUp(false)
       }
     }
 
-    fetchCurrentSubscription()
+    fetchCurrentTopUp()
   }, [isConnected, address])
 
   useEffect(() => {
-    if (!currentSubscription) return
+    if (!currentTopUp) return
 
-    const config = currentSubscription.config as unknown as { schedule: string }
-    const frequencyFound = getFrequencyFromSchedule(config.schedule)
-    if (frequencyFound) setFrequency(frequencyFound)
-
-    const inputs = currentSubscription.input
-    setAmount(String(inputs.amountIn))
+    const inputs = currentTopUp.input
+    setTargetAmount(String(inputs.targetAmount))
+    setThresholdAmount(String(inputs.thresholdAmount))
     setMaxFee(String(inputs.maxFee))
+    setSlippage(String(inputs.slippage))
     setRecipient(String(inputs.recipient))
 
-    const sourceChain = Object.values(CHAINS).find((chain: Chain) => chain.id == inputs.sourceChain)
-    if (sourceChain) setSourceChain(sourceChain)
+    const sourceChainFound = Object.values(CHAINS).find((chain: Chain) => chain.id == inputs.sourceChain)
+    if (sourceChainFound) {
+      setSourceChain(sourceChainFound)
+      const token = Object.values(TOKENS[sourceChainFound.key]).find((token) => token.address == inputs.token)
+      if (token) setSourceToken(token)
+    }
 
-    const destinationChain = Object.values(CHAINS).find((chain: Chain) => chain.id == inputs.destinationChain)
-    if (destinationChain) setDestinationChain(destinationChain)
-  }, [currentSubscription])
+    const destinationChainFound = Object.values(CHAINS).find((chain: Chain) => chain.id == inputs.destinationChain)
+    if (destinationChainFound) {
+      setDestinationChain(destinationChainFound)
+      const token = Object.values(TOKENS[destinationChainFound.key]).find((token) => token.address == inputs.token)
+      if (token) setDestinationToken(token)
+    }
+  }, [currentTopUp])
 
-  const handleActivate = async () => {
-    if (!amount || Number.parseFloat(amount) <= 0) {
+  const handleTopUp = async () => {
+    if (!thresholdAmount || Number.parseFloat(thresholdAmount) <= 0) {
       toast({
-        title: 'Invalid Amount',
-        description: 'Please enter a valid subscription amount',
+        title: 'Invalid Threshold',
+        description: 'Please enter a valid threshold amount.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    if (!targetAmount || Number.parseFloat(targetAmount) <= 0) {
+      toast({
+        title: 'Invalid Target',
+        description: 'Please enter a valid target amount.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    if (Number.parseFloat(targetAmount) <= Number.parseFloat(thresholdAmount)) {
+      toast({
+        title: 'Invalid Amounts',
+        description: 'Target amount must be greater than the threshold amount.',
         variant: 'destructive',
       })
       return
@@ -95,7 +145,16 @@ export function Form() {
     if (!maxFee || Number.parseFloat(maxFee) <= 0) {
       toast({
         title: 'Invalid Max Fee',
-        description: 'Please enter a valid subscription max fee',
+        description: 'Please enter a valid max fee',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    if (!slippage || Number.parseFloat(slippage) <= 0) {
+      toast({
+        title: 'Invalid Slippage',
+        description: 'Please enter a valid slippage',
         variant: 'destructive',
       })
       return
@@ -103,12 +162,23 @@ export function Form() {
 
     setIsLoading(true)
     try {
-      const params = { sourceChain, destinationChain, amount, recipient, maxFee, frequency, signer }
-      const trigger = await subscribe(params)
+      const params = {
+        sourceChain,
+        sourceToken,
+        destinationChain,
+        destinationToken,
+        targetAmount,
+        thresholdAmount,
+        recipient,
+        maxFee,
+        slippage,
+        signer,
+      }
+      const trigger = await topUp(params)
 
       toast({
-        title: 'Subscription Activated',
-        description: 'Your subscription has been created successfully',
+        title: 'Top-up Initiated',
+        description: 'Your card top-up has been created successfully',
         action: (
           <ToastAction
             altText="View"
@@ -119,11 +189,11 @@ export function Form() {
         ),
       })
 
-      setCurrentSubscription(trigger)
+      setCurrentTopUp(trigger)
     } catch (error) {
       toast({
-        title: 'Activation Failed',
-        description: error instanceof Error ? error.message : 'Failed to activate subscription',
+        title: 'Top-up Failed',
+        description: error instanceof Error ? error.message : 'Failed to initiate top-up',
         variant: 'destructive',
       })
     } finally {
@@ -131,25 +201,26 @@ export function Form() {
     }
   }
 
-  const handleDeactivate = async () => {
-    if (!currentSubscription) return
+  const handleCancel = async () => {
+    if (!currentTopUp) return
     setIsLoading(true)
 
     try {
-      const params = { trigger: currentSubscription, signer }
-      await deactivate(params)
+      const params = { trigger: currentTopUp, signer }
+      await cancel(params)
 
       toast({
-        title: 'Subscription Deactivated',
-        description: 'Your subscription has been deactivated successfully',
+        title: 'Top-up Cancelled',
+        description: 'Your card top-up has been cancelled successfully',
       })
 
-      setCurrentSubscription(null)
-      setAmount('')
+      setCurrentTopUp(null)
+      setTargetAmount('')
+      setThresholdAmount('')
     } catch (error) {
       toast({
-        title: 'Deactivation Failed',
-        description: error instanceof Error ? error.message : 'Failed to deactivate subscription',
+        title: 'Cancellation Failed',
+        description: error instanceof Error ? error.message : 'Failed to cancel top-up',
         variant: 'destructive',
       })
     } finally {
@@ -192,11 +263,11 @@ export function Form() {
         )}
 
         <div className="space-y-1 flex items-end justify-between">
-          {currentSubscription ? (
+          {currentTopUp ? (
             <div className="flex items-center gap-2">
-              <div className="text-sm font-medium">Subscription detected</div>
+              <div className="text-sm font-medium">Top-up detected</div>
               <a
-                href={`https://protocol.mimic.fi/triggers/${currentSubscription.sig}`}
+                href={`https://protocol.mimic.fi/triggers/${currentTopUp.sig}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-sm text-violet-500 hover:text-violet-400 transition-colors"
@@ -205,7 +276,7 @@ export function Form() {
               </a>
             </div>
           ) : (
-            <Label className="text-sm font-medium">Configure your USDC subscription</Label>
+            <Label className="text-sm font-medium">Top up your card</Label>
           )}
           <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
             <DialogTrigger asChild>
@@ -219,6 +290,30 @@ export function Form() {
               </DialogHeader>
 
               <div className="space-y-4 py-4">
+                {(sourceChain.id != destinationChain.id || sourceToken.address != destinationToken.address) && (
+                  <div className="space-y-2">
+                    <Label htmlFor="slippage-setting" className="text-sm text-muted-foreground">
+                      Slippage
+                    </Label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id="slippage-setting"
+                        type="number"
+                        placeholder="0.1"
+                        value={slippage}
+                        onChange={(e) => setSlippage(e.target.value)}
+                        className="h-11 bg-secondary/50 border-border"
+                        min="0"
+                        step="0.01"
+                        disabled={isFormDisabled}
+                      />
+                      <span className="text-muted-foreground"> %</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Maximum slippage you{"'"}re willing to pay per swap.
+                    </p>
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label htmlFor="max-fee-setting" className="text-sm text-muted-foreground">
                     Max fee
@@ -235,23 +330,9 @@ export function Form() {
                       step="0.01"
                       disabled={isFormDisabled}
                     />
-                    <span className="text-muted-foreground">USDC</span>
+                    <span className="text-muted-foreground">USD</span>
                   </div>
-                  <p className="text-xs text-muted-foreground">Maximum fee you’re willing to pay per execution.</p>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="recipient-setting" className="text-sm text-muted-foreground">
-                    Recipient
-                  </Label>
-                  <Input
-                    id="recipient-setting"
-                    type="text"
-                    value={recipient}
-                    onChange={(e) => setRecipient(e.target.value)}
-                    className="h-11 bg-secondary/50 border-border"
-                    disabled={isFormDisabled}
-                  />
-                  <p className="text-xs text-muted-foreground">Address that will receive the subscription payments.</p>
+                  <p className="text-xs text-muted-foreground">Maximum fee you{"'"}re willing to pay per execution.</p>
                 </div>
               </div>
             </DialogContent>
@@ -261,13 +342,13 @@ export function Form() {
         <div className="space-y-3">
           <div className="flex gap-2 items-center">
             <div className="w-36 shrink-0">
-              <Label className="text-muted-foreground">Source</Label>
+              <Label className="text-muted-foreground">Source Chain</Label>
             </div>
             <div className="w-36 shrink-0">
-              <Label className="text-muted-foreground">Destination</Label>
+              <Label className="text-muted-foreground">Source Token</Label>
             </div>
             <div className="flex-1 min-w-0">
-              <Label className="text-muted-foreground">Amount</Label>
+              <Label className="text-muted-foreground">Recipient</Label>
             </div>
           </div>
 
@@ -276,14 +357,13 @@ export function Form() {
               <ChainSelector value={sourceChain} onChange={setSourceChain} />
             </div>
             <div className={`w-36 shrink-0 ${isFormDisabled ? 'pointer-events-none opacity-70' : ''}`}>
-              <ChainSelector value={destinationChain} onChange={setDestinationChain} />
+              <TokenSelector chain={sourceChain} value={sourceToken} onChange={setSourceToken} />
             </div>
             <div className="flex-1 min-w-0">
               <Input
-                type="number"
-                placeholder="0.0"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+                type="text"
+                value={recipient}
+                onChange={(e) => setRecipient(e.target.value)}
                 className="h-12 bg-secondary/50 border-border text-lg text-right"
                 disabled={isFormDisabled}
               />
@@ -292,49 +372,77 @@ export function Form() {
         </div>
 
         <div className="space-y-3">
-          <Label className="text-muted-foreground">Frequency</Label>
-          <div className="flex gap-2 flex-wrap">
-            {(Object.keys(CRON_SCHEDULES) as Frequency[]).map((f) => (
-              <Button
-                key={f}
-                type="button"
-                variant={frequency === f ? 'default' : 'secondary'}
-                className="rounded-xl"
-                onClick={() => setFrequency(f)}
+          <div className="flex gap-2 items-center">
+            <div className="w-36 shrink-0">
+              <Label className="text-muted-foreground">Destination Chain</Label>
+            </div>
+            <div className="w-36 shrink-0">
+              <Label className="text-muted-foreground">Destination Token</Label>
+            </div>
+            <div className="w-36 shrink-0">
+              <Label className="text-muted-foreground">Threshold</Label>
+            </div>
+            <div className="flex-1 min-w-0">
+              <Label className="text-muted-foreground">Target</Label>
+            </div>
+          </div>
+
+          <div className="flex gap-2 items-center">
+            <div className={`w-36 shrink-0 ${isFormDisabled ? 'pointer-events-none opacity-70' : ''}`}>
+              <ChainSelector value={destinationChain} onChange={setDestinationChain} />
+            </div>
+            <div className={`w-36 shrink-0 ${isFormDisabled ? 'pointer-events-none opacity-70' : ''}`}>
+              <TokenSelector chain={destinationChain} value={destinationToken} onChange={setDestinationToken} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <Input
+                type="number"
+                placeholder="0.0"
+                value={targetAmount}
+                onChange={(e) => setTargetAmount(e.target.value)}
+                className="h-12 bg-secondary/50 border-border text-lg text-right"
                 disabled={isFormDisabled}
-              >
-                {capitalize(f)}
-              </Button>
-            ))}
+              />
+            </div>
+            <div className="w-36 shrink-0">
+              <Input
+                type="number"
+                placeholder="0.0"
+                value={thresholdAmount}
+                onChange={(e) => setThresholdAmount(e.target.value)}
+                className="h-12 bg-secondary/50 border-border text-lg text-right"
+                disabled={isFormDisabled}
+              />
+            </div>
           </div>
         </div>
 
-        {currentSubscription ? (
+        {currentTopUp ? (
           <Button
             size="lg"
             variant="destructive"
             className="w-full text-lg h-14"
-            onClick={handleDeactivate}
+            onClick={handleCancel}
             disabled={isLoading || !isConnected || !isSmartAccount}
           >
-            {isLoading ? 'Deactivating...' : 'Deactivate subscription'}
+            {isLoading ? 'Cancelling...' : 'Cancel top-up'}
           </Button>
         ) : (
           <Button
             size="lg"
             className="w-full text-lg h-14 bg-linear-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700"
-            onClick={handleActivate}
+            onClick={handleTopUp}
             disabled={isLoading || !isConnected || !isSmartAccount}
           >
             {isLoading
-              ? 'Creating Subscription...'
+              ? 'Initiating Top-up...'
               : !isConnected
                 ? 'Connect wallet'
                 : isSmartAccountLoading
                   ? 'Checking account...'
                   : !isSmartAccount
                     ? 'EIP-7702 required'
-                    : 'Activate subscription'}
+                    : 'Top up card'}
           </Button>
         )}
 

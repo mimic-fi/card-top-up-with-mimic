@@ -14,8 +14,8 @@ interface Props {
 }
 
 export const metadata: Metadata = {
-  title: 'Mimic Subscription Payments',
-  description: 'USDC subscription service with automatic recurring billing powered by Mimic',
+  title: 'Mimic Card Top-up',
+  description: 'Credit card top-up service powered by Mimic',
   generator: 'v0.app',
   icons: {
     icon: [
