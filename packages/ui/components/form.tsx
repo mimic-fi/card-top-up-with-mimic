@@ -11,16 +11,17 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ChainSelector } from '@/components/chain-selector'
+import { TokenSelector } from '@/components/token-selector'
 
 import { useToast } from '@/hooks/use-toast'
 import { ToastAction } from '@/components/ui/toast'
 import { CHAINS, type Chain } from '@/lib/chains'
+import { TOKENS, type Token } from '@/lib/tokens'
 import { WagmiSigner } from '@/lib/wagmi-signer'
 import { useSmartAccountCheck } from '@/hooks/use-smart-account-check'
 
-import { type Frequency, CRON_SCHEDULES, subscribe, deactivate, getFrequencyFromSchedule } from '@/lib/subscription'
+import { topUp, cancel } from '@/lib/top-up'
 import { findCurrentTrigger } from '@/lib/functions'
-import { capitalize } from '@/lib/utils'
 
 export function Form() {
   const { toast } = useToast()
@@ -30,63 +31,62 @@ export function Form() {
 
   const [sourceChain, setSourceChain] = useState<Chain>(CHAINS.base)
   const [destinationChain, setDestinationChain] = useState<Chain>(CHAINS.base)
+  const [token, setToken] = useState<Token>(TOKENS.usdc)
   const [amount, setAmount] = useState('')
   const [recipient, setRecipient] = useState('0xbcE3248eDE29116e4bD18416dcC2DFca668Eeb84')
   const [maxFee, setMaxFee] = useState('0.1')
-  const [frequency, setFrequency] = useState<Frequency>('daily')
   const [isLoading, setIsLoading] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [currentSubscription, setCurrentSubscription] = useState<Trigger | null>(null)
-  const [isLoadingCurrentSubscription, setIsLoadingCurrentSubscription] = useState(false)
+  const [currentTopUp, setCurrentTopUp] = useState<Trigger | null>(null)
+  const [isLoadingCurrentTopUp, setIsLoadingCurrentTopUp] = useState(false)
   const { isSmartAccount, isSmartAccountLoading } = useSmartAccountCheck(sourceChain)
-  const isFormDisabled = isLoadingCurrentSubscription || !!currentSubscription
+  const isFormDisabled = isLoadingCurrentTopUp || !!currentTopUp
 
   useEffect(() => {
-    const fetchCurrentSubscription = async () => {
+    const fetchCurrentTopUp = async () => {
       try {
         if (!isConnected || !address) {
-          setCurrentSubscription(null)
+          setCurrentTopUp(null)
           return
         }
 
-        setIsLoadingCurrentSubscription(true)
+        setIsLoadingCurrentTopUp(true)
         const trigger = await findCurrentTrigger(address)
-        setCurrentSubscription(trigger)
+        setCurrentTopUp(trigger)
       } catch (error) {
-        console.error('Error fetching subscription trigger', error)
-        setCurrentSubscription(null)
+        console.error('Error fetching top-up trigger', error)
+        setCurrentTopUp(null)
       } finally {
-        setIsLoadingCurrentSubscription(false)
+        setIsLoadingCurrentTopUp(false)
       }
     }
 
-    fetchCurrentSubscription()
+    fetchCurrentTopUp()
   }, [isConnected, address])
 
   useEffect(() => {
-    if (!currentSubscription) return
+    if (!currentTopUp) return
 
-    const config = currentSubscription.config as unknown as { schedule: string }
-    const frequencyFound = getFrequencyFromSchedule(config.schedule)
-    if (frequencyFound) setFrequency(frequencyFound)
-
-    const inputs = currentSubscription.input
-    setAmount(String(inputs.amountIn))
+    const inputs = currentTopUp.input
+    setAmount(String(inputs.amountInUsd))
     setMaxFee(String(inputs.maxFee))
     setRecipient(String(inputs.recipient))
 
-    const sourceChain = Object.values(CHAINS).find((chain: Chain) => chain.id == inputs.sourceChain)
-    if (sourceChain) setSourceChain(sourceChain)
+    const tokenFound = Object.values(TOKENS).find((t: Token) => t.symbol == inputs.token)
+    if (tokenFound) setToken(tokenFound)
 
-    const destinationChain = Object.values(CHAINS).find((chain: Chain) => chain.id == inputs.destinationChain)
-    if (destinationChain) setDestinationChain(destinationChain)
-  }, [currentSubscription])
+    const sourceChainFound = Object.values(CHAINS).find((chain: Chain) => chain.id == inputs.sourceChain)
+    if (sourceChainFound) setSourceChain(sourceChainFound)
 
-  const handleActivate = async () => {
+    const destinationChainFound = Object.values(CHAINS).find((chain: Chain) => chain.id == inputs.destinationChain)
+    if (destinationChainFound) setDestinationChain(destinationChainFound)
+  }, [currentTopUp])
+
+  const handleTopUp = async () => {
     if (!amount || Number.parseFloat(amount) <= 0) {
       toast({
         title: 'Invalid Amount',
-        description: 'Please enter a valid subscription amount',
+        description: 'Please enter a valid top-up amount in USD',
         variant: 'destructive',
       })
       return
@@ -95,7 +95,7 @@ export function Form() {
     if (!maxFee || Number.parseFloat(maxFee) <= 0) {
       toast({
         title: 'Invalid Max Fee',
-        description: 'Please enter a valid subscription max fee',
+        description: 'Please enter a valid max fee',
         variant: 'destructive',
       })
       return
@@ -103,12 +103,12 @@ export function Form() {
 
     setIsLoading(true)
     try {
-      const params = { sourceChain, destinationChain, amount, recipient, maxFee, frequency, signer }
-      const trigger = await subscribe(params)
+      const params = { sourceChain, destinationChain, token, amount, recipient, maxFee, signer }
+      const trigger = await topUp(params)
 
       toast({
-        title: 'Subscription Activated',
-        description: 'Your subscription has been created successfully',
+        title: 'Top-up Initiated',
+        description: 'Your card top-up has been created successfully',
         action: (
           <ToastAction
             altText="View"
@@ -119,11 +119,11 @@ export function Form() {
         ),
       })
 
-      setCurrentSubscription(trigger)
+      setCurrentTopUp(trigger)
     } catch (error) {
       toast({
-        title: 'Activation Failed',
-        description: error instanceof Error ? error.message : 'Failed to activate subscription',
+        title: 'Top-up Failed',
+        description: error instanceof Error ? error.message : 'Failed to initiate top-up',
         variant: 'destructive',
       })
     } finally {
@@ -131,25 +131,25 @@ export function Form() {
     }
   }
 
-  const handleDeactivate = async () => {
-    if (!currentSubscription) return
+  const handleCancel = async () => {
+    if (!currentTopUp) return
     setIsLoading(true)
 
     try {
-      const params = { trigger: currentSubscription, signer }
-      await deactivate(params)
+      const params = { trigger: currentTopUp, signer }
+      await cancel(params)
 
       toast({
-        title: 'Subscription Deactivated',
-        description: 'Your subscription has been deactivated successfully',
+        title: 'Top-up Cancelled',
+        description: 'Your card top-up has been cancelled successfully',
       })
 
-      setCurrentSubscription(null)
+      setCurrentTopUp(null)
       setAmount('')
     } catch (error) {
       toast({
-        title: 'Deactivation Failed',
-        description: error instanceof Error ? error.message : 'Failed to deactivate subscription',
+        title: 'Cancellation Failed',
+        description: error instanceof Error ? error.message : 'Failed to cancel top-up',
         variant: 'destructive',
       })
     } finally {
@@ -192,11 +192,11 @@ export function Form() {
         )}
 
         <div className="space-y-1 flex items-end justify-between">
-          {currentSubscription ? (
+          {currentTopUp ? (
             <div className="flex items-center gap-2">
-              <div className="text-sm font-medium">Subscription detected</div>
+              <div className="text-sm font-medium">Top-up detected</div>
               <a
-                href={`https://protocol.mimic.fi/triggers/${currentSubscription.sig}`}
+                href={`https://protocol.mimic.fi/triggers/${currentTopUp.sig}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-sm text-violet-500 hover:text-violet-400 transition-colors"
@@ -205,7 +205,7 @@ export function Form() {
               </a>
             </div>
           ) : (
-            <Label className="text-sm font-medium">Configure your USDC subscription</Label>
+            <Label className="text-sm font-medium">Top up your card</Label>
           )}
           <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
             <DialogTrigger asChild>
@@ -219,6 +219,15 @@ export function Form() {
               </DialogHeader>
 
               <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="destination-chain-setting" className="text-sm text-muted-foreground">
+                    Destination chain
+                  </Label>
+                  <div className={isFormDisabled ? 'pointer-events-none opacity-70' : ''}>
+                    <ChainSelector value={destinationChain} onChange={setDestinationChain} />
+                  </div>
+                  <p className="text-xs text-muted-foreground">Chain where the card top-up will be received.</p>
+                </div>
                 <div className="space-y-2">
                   <Label htmlFor="max-fee-setting" className="text-sm text-muted-foreground">
                     Max fee
@@ -237,7 +246,7 @@ export function Form() {
                     />
                     <span className="text-muted-foreground">USDC</span>
                   </div>
-                  <p className="text-xs text-muted-foreground">Maximum fee you’re willing to pay per execution.</p>
+                  <p className="text-xs text-muted-foreground">Maximum fee you{"'"}re willing to pay per execution.</p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="recipient-setting" className="text-sm text-muted-foreground">
@@ -251,7 +260,7 @@ export function Form() {
                     className="h-11 bg-secondary/50 border-border"
                     disabled={isFormDisabled}
                   />
-                  <p className="text-xs text-muted-foreground">Address that will receive the subscription payments.</p>
+                  <p className="text-xs text-muted-foreground">Address that will receive the card top-up.</p>
                 </div>
               </div>
             </DialogContent>
@@ -261,13 +270,13 @@ export function Form() {
         <div className="space-y-3">
           <div className="flex gap-2 items-center">
             <div className="w-36 shrink-0">
-              <Label className="text-muted-foreground">Source</Label>
+              <Label className="text-muted-foreground">Chain</Label>
             </div>
             <div className="w-36 shrink-0">
-              <Label className="text-muted-foreground">Destination</Label>
+              <Label className="text-muted-foreground">Token</Label>
             </div>
             <div className="flex-1 min-w-0">
-              <Label className="text-muted-foreground">Amount</Label>
+              <Label className="text-muted-foreground">Amount (USD)</Label>
             </div>
           </div>
 
@@ -276,7 +285,7 @@ export function Form() {
               <ChainSelector value={sourceChain} onChange={setSourceChain} />
             </div>
             <div className={`w-36 shrink-0 ${isFormDisabled ? 'pointer-events-none opacity-70' : ''}`}>
-              <ChainSelector value={destinationChain} onChange={setDestinationChain} />
+              <TokenSelector value={token} onChange={setToken} />
             </div>
             <div className="flex-1 min-w-0">
               <Input
@@ -291,50 +300,32 @@ export function Form() {
           </div>
         </div>
 
-        <div className="space-y-3">
-          <Label className="text-muted-foreground">Frequency</Label>
-          <div className="flex gap-2 flex-wrap">
-            {(Object.keys(CRON_SCHEDULES) as Frequency[]).map((f) => (
-              <Button
-                key={f}
-                type="button"
-                variant={frequency === f ? 'default' : 'secondary'}
-                className="rounded-xl"
-                onClick={() => setFrequency(f)}
-                disabled={isFormDisabled}
-              >
-                {capitalize(f)}
-              </Button>
-            ))}
-          </div>
-        </div>
-
-        {currentSubscription ? (
+        {currentTopUp ? (
           <Button
             size="lg"
             variant="destructive"
             className="w-full text-lg h-14"
-            onClick={handleDeactivate}
+            onClick={handleCancel}
             disabled={isLoading || !isConnected || !isSmartAccount}
           >
-            {isLoading ? 'Deactivating...' : 'Deactivate subscription'}
+            {isLoading ? 'Cancelling...' : 'Cancel top-up'}
           </Button>
         ) : (
           <Button
             size="lg"
             className="w-full text-lg h-14 bg-linear-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700"
-            onClick={handleActivate}
+            onClick={handleTopUp}
             disabled={isLoading || !isConnected || !isSmartAccount}
           >
             {isLoading
-              ? 'Creating Subscription...'
+              ? 'Initiating Top-up...'
               : !isConnected
                 ? 'Connect wallet'
                 : isSmartAccountLoading
                   ? 'Checking account...'
                   : !isSmartAccount
                     ? 'EIP-7702 required'
-                    : 'Activate subscription'}
+                    : 'Top up card'}
           </Button>
         )}
 

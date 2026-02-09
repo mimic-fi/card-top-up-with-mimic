@@ -40,7 +40,7 @@ export function History() {
       <Card className="w-full max-w-2xl py-6 bg-card border-border">
         <div className="flex items-center justify-center py-8">
           <Loader2 className="h-6 w-6 animate-spin text-violet-500" />
-          <span className="ml-2 text-muted-foreground">Loading payments history...</span>
+          <span className="ml-2 text-muted-foreground">Loading top-up history...</span>
         </div>
       </Card>
     )
@@ -50,7 +50,7 @@ export function History() {
     return (
       <Card className="w-full max-w-2xl py-6 bg-card border-border">
         <div className="text-center py-8">
-          <p className="text-destructive">{error.message ?? 'Failed to load payments history'}</p>
+          <p className="text-destructive">{error.message ?? 'Failed to load top-up history'}</p>
         </div>
       </Card>
     )
@@ -61,7 +61,7 @@ export function History() {
       <Card className="w-full max-w-2xl py-6 bg-card border-border">
         <div className="text-center py-8">
           <p className="text-muted-foreground">
-            {isConnected ? 'No payments registered yet' : 'Please connect your wallet'}
+            {isConnected ? 'No top-ups registered yet' : 'Please connect your wallet'}
           </p>
         </div>
       </Card>
@@ -71,7 +71,7 @@ export function History() {
   return (
     <Card className="w-full max-w-2xl py-6 bg-card border-border">
       <div className="p-6">
-        <h2 className="text-xl font-semibold mb-4">Payments history</h2>
+        <h2 className="text-xl font-semibold mb-4">Top-up history</h2>
         <div className="space-y-3">
           {executions.map((execution, index) => (
             <div
