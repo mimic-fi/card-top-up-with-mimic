@@ -1,9 +1,9 @@
 {
   "name": "card-top-up-with-mimic",
-  "version": "1.0.0",
-  "description": "Card top up with Mimic",
-  "license": "MIT",
   "private": true,
+  "version": "1.0.0",
+  "description": "Crypto card auto top-up example with Mimic",
+  "license": "MIT",
   "scripts": {
     "build": "yarn workspaces run build",
     "lint": "yarn workspaces run lint",
