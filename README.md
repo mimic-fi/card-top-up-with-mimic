@@ -54,34 +54,6 @@ This allows a card program to implement top-up policies and user preferences whi
 
 ## Scope
 
-Mimic supports execution across multiple chains, including cross-chain top-up flows where the funding token and the settlement asset are on different networks. The same top-up model can be applied to other supported networks without changes to execution orchestration.
-
-This repository demonstrates how to build a card top up system on Ethereum using Mimic as the execution and automation layer.
-
-In this example, users can configure a card top up function payments using:
-
-- Any supported token
-- Without holding native tokens for gas
-
-The application does not implement:
-
-- Scheduled transaction execution
-- Token swaps for card top up payments
-- Cross-chain transfers
-- Gas management
-- RPC connections or oracle integrations
-
-Mimic handles automation and execution by:
-
-- Executing top up when threshold is reached
-- Routing execution across chains when required
-- Managing gas payment and retries
-- Ensuring reliable execution without user intervention
-
-This allows the application to define top up logic without maintaining custom automation or execution infrastructure.
-
-## Scope
-
 This example uses Ethereum as the reference chain.
 
 Mimic supports execution across multiple chains, including cross-chain payment flows. The same subscription model applies to other supported networks.
