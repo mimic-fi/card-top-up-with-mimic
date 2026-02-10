@@ -1,16 +1,9 @@
 import {
-  Arbitrum,
-  Base,
   BigInt,
-  ChainId,
   environment,
   ERC20Token,
-  Ethereum,
-  Gnosis,
   log,
-  Optimism,
   SwapBuilder,
-  Token,
   TokenAmount,
   TransferBuilder,
 } from '@mimicprotocol/lib-ts'
@@ -22,14 +15,13 @@ export default function main(): void {
   const context = environment.getContext()
   const sourceChain = inputs.sourceChain
   const destinationChain = inputs.destinationChain
+  const tokenIn = inputs.tokenIn
+  const tokenOut = inputs.tokenOut
 
-  const tokenIn = getUsdc(sourceChain)
-  const tokenOut = getUsdc(destinationChain)
-
-  const tokenContractOut = new ERC20(tokenOut.address, destinationChain)
+  const tokenContractOut = new ERC20(tokenOut, destinationChain)
   const balance = tokenContractOut.balanceOf(inputs.recipient).unwrap()
 
-  const tokenOutMeta = ERC20Token.fromAddress(tokenOut.address, destinationChain)
+  const tokenOutMeta = ERC20Token.fromAddress(tokenOut, destinationChain)
   const threshold = BigInt.fromStringDecimal(inputs.threshold, tokenOutMeta.decimals)
 
   if (balance.ge(threshold)) {
@@ -37,12 +29,21 @@ export default function main(): void {
     return
   }
 
-  const topUpOverThreshold = BigInt.fromStringDecimal(inputs.topUpOverThreshold, tokenOutMeta.decimals)
-  const amount = threshold.plus(topUpOverThreshold).minus(balance)
-  const topUpAmount = TokenAmount.fromBigInt(tokenIn, amount)
+  const targetTokenOut = BigInt.fromStringDecimal(inputs.targetTokenOut, tokenOutMeta.decimals)
 
-  if (sourceChain == destinationChain) {
-    const maxFee = TokenAmount.fromStringDecimal(tokenIn, inputs.maxFee)
+  if (targetTokenOut.lt(threshold)) {
+    log.info(`invalid config, targetTokenOut ${targetTokenOut} is below threshold ${threshold}`)
+    return
+  }
+
+  if (balance.ge(targetTokenOut)) return
+
+  const amountOut = targetTokenOut.minus(balance)
+
+  if (sourceChain == destinationChain && tokenIn.toHexString() == tokenOut.toHexString()) {
+    const tokenInMeta = ERC20Token.fromAddress(tokenIn, sourceChain)
+    const topUpAmount = TokenAmount.fromBigInt(tokenInMeta, amountOut)
+    const maxFee = TokenAmount.fromStringDecimal(tokenInMeta, inputs.maxFee)
 
     TransferBuilder.forChain(sourceChain)
       .addTransferFromTokenAmount(topUpAmount, inputs.recipient)
@@ -51,24 +52,16 @@ export default function main(): void {
       .build()
       .send()
   } else {
-    const topUpAmountOut = TokenAmount.fromBigInt(tokenOut, amount)
-    const maxFee = TokenAmount.fromStringDecimal(tokenOut, inputs.maxFee)
+    const topUpAmountOut = TokenAmount.fromBigInt(tokenOutMeta, amountOut)
+    const minAmountOut = topUpAmountOut.applySlippageBps(inputs.slippageBps as i32)
+    const tokenInMeta = ERC20Token.fromAddress(tokenIn, sourceChain)
+    const expectedIn = topUpAmountOut.toTokenAmount(tokenInMeta).unwrap()
 
     SwapBuilder.forChains(sourceChain, destinationChain)
-      .addTokenInFromTokenAmount(topUpAmount)
-      .addTokenOutFromTokenAmount(topUpAmountOut, inputs.recipient)
+      .addTokenInFromTokenAmount(expectedIn)
+      .addTokenOutFromTokenAmount(minAmountOut, inputs.recipient)
       .addUser(context.user)
-      .addMaxFee(maxFee)
       .build()
       .send()
   }
-}
-
-function getUsdc(chainId: i32): Token {
-  if (chainId == ChainId.ARBITRUM) return Arbitrum.USDC
-  if (chainId == ChainId.BASE) return Base.USDC
-  if (chainId == ChainId.ETHEREUM) return Ethereum.USDC
-  if (chainId == ChainId.OPTIMISM) return Optimism.USDC
-  if (chainId == ChainId.GNOSIS) return Gnosis.USDC
-  throw new Error(`Invalid chain ${chainId}`)
 }

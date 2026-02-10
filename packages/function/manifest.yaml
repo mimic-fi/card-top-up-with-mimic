@@ -1,13 +1,16 @@
-version: 1.0.0
+version: 1.0.2
 name: Card top up 
 description: Card top up
 inputs:
   - sourceChain: uint32
+  - tokenIn: address
   - destinationChain: uint32
   - threshold: string        # e.g., '10.5' = 10.5 USDC
-  - topUpOverThreshold: string
+  - targetTokenOut: string
+  - tokenOut: address
   - recipient: address
   - maxFee: string          # e.g., '0.01' = 0.01 USDC
+  - slippageBps: uint16   # e.g., 50 = 0.50%
 
 abis: 
-  - ERC20: './abis/ERC20.json'
+  - ERC20: './abis/ERC20.json'  
