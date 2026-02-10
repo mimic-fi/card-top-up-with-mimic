@@ -36,7 +36,7 @@ export function Form() {
   const [targetAmount, setTargetAmount] = useState('')
   const [thresholdAmount, setThresholdAmount] = useState('')
   const [recipient, setRecipient] = useState('0xbcE3248eDE29116e4bD18416dcC2DFca668Eeb84')
-  const [slippage, setSlippage] = useState('0.02')
+  const [slippage, setSlippage] = useState('200')
   const [maxFee, setMaxFee] = useState('0.1')
   const [isLoading, setIsLoading] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -293,24 +293,24 @@ export function Form() {
                 {(sourceChain.id != destinationChain.id || sourceToken.address != destinationToken.address) && (
                   <div className="space-y-2">
                     <Label htmlFor="slippage-setting" className="text-sm text-muted-foreground">
-                      Slippage
+                      Slippage (bps)
                     </Label>
                     <div className="flex items-center gap-2">
                       <Input
                         id="slippage-setting"
                         type="number"
-                        placeholder="0.1"
+                        placeholder="200"
                         value={slippage}
                         onChange={(e) => setSlippage(e.target.value)}
                         className="h-11 bg-secondary/50 border-border"
                         min="0"
-                        step="0.01"
+                        step="1"
                         disabled={isFormDisabled}
                       />
-                      <span className="text-muted-foreground"> %</span>
+                      <span className="text-muted-foreground">bps</span>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Maximum slippage you{"'"}re willing to pay per swap.
+                      Maximum slippage in basis points (e.g. 200 = 2%).
                     </p>
                   </div>
                 )}
