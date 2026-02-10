@@ -1,12 +1,4 @@
-import {
-  BigInt,
-  environment,
-  ERC20Token,
-  log,
-  SwapBuilder,
-  TokenAmount,
-  TransferBuilder,
-} from '@mimicprotocol/lib-ts'
+import { BigInt, environment, ERC20Token, log, SwapBuilder, TokenAmount, TransferBuilder } from '@mimicprotocol/lib-ts'
 
 import { ERC20 } from './types/ERC20'
 import { inputs } from './types'
@@ -15,21 +7,21 @@ export default function main(): void {
   const context = environment.getContext()
   const sourceChain = inputs.sourceChain
   const destinationChain = inputs.destinationChain
-  const tokenIn = inputs.tokenIn
-  const tokenOut = inputs.tokenOut
+  const tokenIn = inputs.sourceToken
+  const tokenOut = inputs.destinationToken
 
   const tokenContractOut = new ERC20(tokenOut, destinationChain)
   const balance = tokenContractOut.balanceOf(inputs.recipient).unwrap()
 
   const tokenOutMeta = ERC20Token.fromAddress(tokenOut, destinationChain)
-  const threshold = BigInt.fromStringDecimal(inputs.threshold, tokenOutMeta.decimals)
+  const threshold = BigInt.fromStringDecimal(inputs.thresholdAmount, tokenOutMeta.decimals)
 
   if (balance.ge(threshold)) {
     log.info(`balance over threshold, balance ${balance}, threshold ${threshold}`)
     return
   }
 
-  const targetTokenOut = BigInt.fromStringDecimal(inputs.targetTokenOut, tokenOutMeta.decimals)
+  const targetTokenOut = BigInt.fromStringDecimal(inputs.targetAmount, tokenOutMeta.decimals)
 
   if (targetTokenOut.lt(threshold)) {
     log.info(`invalid config, targetTokenOut ${targetTokenOut} is below threshold ${threshold}`)
@@ -53,7 +45,7 @@ export default function main(): void {
       .send()
   } else {
     const topUpAmountOut = TokenAmount.fromBigInt(tokenOutMeta, amountOut)
-    const minAmountOut = topUpAmountOut.applySlippageBps(inputs.slippageBps as i32)
+    const minAmountOut = topUpAmountOut.applySlippageBps(inputs.slippage as i32)
     const tokenInMeta = ERC20Token.fromAddress(tokenIn, sourceChain)
     const expectedIn = topUpAmountOut.toTokenAmount(tokenInMeta).unwrap()
 

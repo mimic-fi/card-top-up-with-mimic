@@ -1,5 +1,5 @@
 import { Chains, fp, OpType, randomEvmAddress } from '@mimicprotocol/sdk'
-import { Context, EvmCallQueryMock, TokenPriceQueryMock, runFunction, Swap, Transfer } from '@mimicprotocol/test-ts'
+import { Context, EvmCallQueryMock, runFunction, Swap, TokenPriceQueryMock, Transfer } from '@mimicprotocol/test-ts'
 import { expect } from 'chai'
 import { Interface } from 'ethers'
 
@@ -22,13 +22,13 @@ describe('Function', () => {
 
   const buildBalanceCalls = (
     destinationChain: number,
-    tokenOut: string,
+    destinationToken: string,
     recipient: string,
     balance: string
   ): EvmCallQueryMock[] => [
     {
       request: {
-        to: tokenOut,
+        to: destinationToken,
         chainId: destinationChain,
         fnSelector: ERC20Interface.getFunction('balanceOf')!.selector,
         params: [{ value: recipient, abiType: 'address' }],
@@ -49,30 +49,30 @@ describe('Function', () => {
   ]
 
   const buildPrices = (chain: number, token: string, price: string): TokenPriceQueryMock[] => [
-  {
-    request: { token: { address: token, chainId: chain } },
-    response: [fp(price).toString()],
-  },
-]
+    {
+      request: { token: { address: token, chainId: chain } },
+      response: [fp(price).toString()],
+    },
+  ]
 
   describe('when the chain is supported', () => {
     describe('when the balance is over or equal to the threshold', () => {
       const inputs = {
         sourceChain: chainId,
+        sourceToken: optimismUsdc,
         destinationChain: chainId,
-        tokenIn: optimismUsdc,
-        tokenOut: optimismUsdc,
+        destinationToken: optimismUsdc,
+        thresholdAmount: '0.02',
+        targetAmount: '0.03',
         recipient: randomEvmAddress(),
         maxFee: '0.1',
-        threshold: '0.02',
-        targetTokenOut: '0.03',
-        slippageBps: 1,
+        slippage: 1,
       }
 
       const balance = '21000' // 0.021 USDC
       const calls = [
-        ...buildBalanceCalls(inputs.destinationChain, inputs.tokenOut, inputs.recipient, balance),
-        ...buildTokenCalls(inputs.destinationChain, inputs.tokenOut),
+        ...buildBalanceCalls(inputs.destinationChain, inputs.destinationToken, inputs.recipient, balance),
+        ...buildTokenCalls(inputs.destinationChain, inputs.destinationToken),
       ]
 
       it('does not produce any intent', async () => {
@@ -88,20 +88,20 @@ describe('Function', () => {
       describe('when source and destination chain are the same', () => {
         const inputs = {
           sourceChain: chainId,
+          sourceToken: optimismUsdc,
           destinationChain: chainId,
-          tokenIn: optimismUsdc,
-          tokenOut: optimismUsdc,
+          destinationToken: optimismUsdc,
+          thresholdAmount: '0.02',
+          targetAmount: '0.03',
           recipient: randomEvmAddress(),
           maxFee: '0.1',
-          threshold: '0.02',
-          targetTokenOut: '0.03',
-          slippageBps: 1,
+          slippage: 1,
         }
 
         const calls = [
-          ...buildBalanceCalls(inputs.destinationChain, inputs.tokenOut, inputs.recipient, balance),
-          ...buildTokenCalls(inputs.destinationChain, inputs.tokenOut),
-          ...buildTokenCalls(inputs.sourceChain, inputs.tokenIn),
+          ...buildBalanceCalls(inputs.destinationChain, inputs.destinationToken, inputs.recipient, balance),
+          ...buildTokenCalls(inputs.destinationChain, inputs.destinationToken),
+          ...buildTokenCalls(inputs.sourceChain, inputs.sourceToken),
         ]
 
         it('produces the expected intents', async () => {
@@ -119,11 +119,11 @@ describe('Function', () => {
           expect(intents[0].chainId).to.be.equal(inputs.sourceChain)
 
           expect(intents[0].maxFees).to.have.lengthOf(1)
-          expect(intents[0].maxFees[0].token).to.be.equal(inputs.tokenIn)
+          expect(intents[0].maxFees[0].token).to.be.equal(inputs.sourceToken)
           expect(intents[0].maxFees[0].amount).to.be.equal(fp(inputs.maxFee, 6).toString())
 
           expect(intents[0].transfers).to.have.lengthOf(1)
-          expect(intents[0].transfers[0].token).to.be.equal(inputs.tokenOut)
+          expect(intents[0].transfers[0].token).to.be.equal(inputs.destinationToken)
           expect(intents[0].transfers[0].amount).to.be.equal(fp('0.02', 6).toString())
           expect(intents[0].transfers[0].recipient).to.be.equal(inputs.recipient)
         })
@@ -132,26 +132,26 @@ describe('Function', () => {
       describe('when source an destination chain are different', () => {
         const inputs = {
           sourceChain: chainId,
+          sourceToken: optimismUsdc,
           destinationChain: Chains.Base,
-          tokenIn: optimismUsdc,
-          tokenOut: baseUsdc,
+          destinationToken: baseUsdc,
+          thresholdAmount: '0.02',
+          targetAmount: '0.03',
           recipient: randomEvmAddress(),
           maxFee: '0.1',
-          threshold: '0.02',
-          targetTokenOut: '0.03',
-          slippageBps: 1,
+          slippage: 1,
         }
 
         const calls = [
-          ...buildBalanceCalls(inputs.destinationChain, inputs.tokenOut, inputs.recipient, balance),
-          ...buildTokenCalls(inputs.destinationChain, inputs.tokenOut),
-          ...buildTokenCalls(inputs.sourceChain, inputs.tokenIn),
+          ...buildBalanceCalls(inputs.destinationChain, inputs.destinationToken, inputs.recipient, balance),
+          ...buildTokenCalls(inputs.destinationChain, inputs.destinationToken),
+          ...buildTokenCalls(inputs.sourceChain, inputs.sourceToken),
         ]
 
         const prices = [
-  ...buildPrices(inputs.sourceChain, inputs.tokenIn, '1'),
-  ...buildPrices(inputs.destinationChain, inputs.tokenOut, '1'),
-]
+          ...buildPrices(inputs.sourceChain, inputs.sourceToken, '1'),
+          ...buildPrices(inputs.destinationChain, inputs.destinationToken, '1'),
+        ]
 
         it('produces the expected intents', async () => {
           const result = await runFunction(buildDir, context, { inputs, calls, prices })
@@ -166,15 +166,15 @@ describe('Function', () => {
           expect(intents[0].settler).to.be.equal(context.settlers?.[0].address)
           expect(intents[0].user).to.be.equal(context.user)
 
-          expect(intents[0].destinationChain).to.be.equal(Chains.Base)
-          expect(intents[0].sourceChain).to.be.equal(Chains.Optimism)
+          expect(intents[0].destinationChain).to.be.equal(inputs.destinationChain)
+          expect(intents[0].sourceChain).to.be.equal(inputs.sourceChain)
 
           expect(intents[0].tokensIn).to.have.lengthOf(1)
-          expect(intents[0].tokensIn[0].token).to.be.equal(inputs.tokenIn)
+          expect(intents[0].tokensIn[0].token).to.be.equal(inputs.sourceToken)
           expect(intents[0].tokensIn[0].amount).to.be.equal(fp('0.02', 6).toString())
 
           expect(intents[0].tokensOut).to.have.lengthOf(1)
-          expect(intents[0].tokensOut[0].token).to.be.equal(inputs.tokenOut)
+          expect(intents[0].tokensOut[0].token).to.be.equal(inputs.destinationToken)
           expect(intents[0].tokensOut[0].minAmount).to.be.equal(fp('0.019998', 6).toString())
           expect(intents[0].tokensOut[0].recipient).to.be.equal(inputs.recipient)
         })
