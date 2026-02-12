@@ -66,7 +66,7 @@ describe('Function', () => {
         targetAmount: '0.03',
         recipient: randomEvmAddress(),
         maxFee: '0.1',
-        slippage: 1,
+        slippageBps: 1,
       }
 
       const balance = '21000' // 0.021 USDC
@@ -95,7 +95,7 @@ describe('Function', () => {
           targetAmount: '0.03',
           recipient: randomEvmAddress(),
           maxFee: '0.1',
-          slippage: 1,
+          slippageBps: 1,
         }
 
         const calls = [
@@ -139,7 +139,7 @@ describe('Function', () => {
           targetAmount: '0.03',
           recipient: randomEvmAddress(),
           maxFee: '0.1',
-          slippage: 1,
+          slippageBps: 1,
         }
 
         const calls = [

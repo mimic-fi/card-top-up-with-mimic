@@ -1,58 +1,51 @@
-import { BigInt, environment, ERC20Token, log, SwapBuilder, TokenAmount, TransferBuilder } from '@mimicprotocol/lib-ts'
+import { BigInt, ERC20Token, log, SwapBuilder, TokenAmount, TransferBuilder } from '@mimicprotocol/lib-ts'
 
 import { ERC20 } from './types/ERC20'
 import { inputs } from './types'
 
+const BPS_DENOMINATOR = BigInt.fromI32(10_000)
+
 export default function main(): void {
-  const context = environment.getContext()
-  const sourceChain = inputs.sourceChain
-  const destinationChain = inputs.destinationChain
-  const tokenIn = inputs.sourceToken
-  const tokenOut = inputs.destinationToken
+  const slippageBps = BigInt.fromI32(inputs.slippageBps as i32)
+  if (slippageBps.gt(BPS_DENOMINATOR)) throw new Error('Slippage must be between 0 and 100 BPS')
 
-  const tokenContractOut = new ERC20(tokenOut, destinationChain)
-  const balance = tokenContractOut.balanceOf(inputs.recipient).unwrap()
-
-  const tokenOutMeta = ERC20Token.fromAddress(tokenOut, destinationChain)
-  const threshold = BigInt.fromStringDecimal(inputs.thresholdAmount, tokenOutMeta.decimals)
+  const tokenOutContract = new ERC20(inputs.destinationToken, inputs.destinationChain)
+  const balance = tokenOutContract.balanceOf(inputs.recipient).unwrap()
+  const tokenOut = ERC20Token.fromAddress(inputs.destinationToken, inputs.destinationChain)
+  const threshold = BigInt.fromStringDecimal(inputs.thresholdAmount, tokenOut.decimals)
+  const target = BigInt.fromStringDecimal(inputs.targetAmount, tokenOut.decimals)
+  if (target.lt(threshold))
+    throw new Error(
+      `Invalid config, target (${target.toStringDecimal(tokenOut.decimals)}) is below threshold (${threshold.toStringDecimal(tokenOut.decimals)})`
+    )
 
   if (balance.ge(threshold)) {
-    log.info(`balance over threshold, balance ${balance}, threshold ${threshold}`)
+    log.info(
+      `Balance (${balance.toStringDecimal(tokenOut.decimals)}) over threshold (${threshold.toStringDecimal(tokenOut.decimals)})`
+    )
     return
   }
 
-  const targetTokenOut = BigInt.fromStringDecimal(inputs.targetAmount, tokenOutMeta.decimals)
+  const tokenIn = ERC20Token.fromAddress(inputs.sourceToken, inputs.sourceChain)
+  const amountOut = target.minus(balance)
 
-  if (targetTokenOut.lt(threshold)) {
-    log.info(`invalid config, targetTokenOut ${targetTokenOut} is below threshold ${threshold}`)
-    return
-  }
+  if (inputs.sourceChain == inputs.destinationChain && tokenIn.equals(tokenOut)) {
+    const topUpAmount = TokenAmount.fromBigInt(tokenIn, amountOut)
+    const maxFee = TokenAmount.fromStringDecimal(tokenIn, inputs.maxFee)
 
-  if (balance.ge(targetTokenOut)) return
-
-  const amountOut = targetTokenOut.minus(balance)
-
-  if (sourceChain == destinationChain && tokenIn.toHexString() == tokenOut.toHexString()) {
-    const tokenInMeta = ERC20Token.fromAddress(tokenIn, sourceChain)
-    const topUpAmount = TokenAmount.fromBigInt(tokenInMeta, amountOut)
-    const maxFee = TokenAmount.fromStringDecimal(tokenInMeta, inputs.maxFee)
-
-    TransferBuilder.forChain(sourceChain)
+    TransferBuilder.forChain(inputs.sourceChain)
       .addTransferFromTokenAmount(topUpAmount, inputs.recipient)
-      .addUser(context.user)
       .addMaxFee(maxFee)
       .build()
       .send()
   } else {
-    const topUpAmountOut = TokenAmount.fromBigInt(tokenOutMeta, amountOut)
-    const minAmountOut = topUpAmountOut.applySlippageBps(inputs.slippage as i32)
-    const tokenInMeta = ERC20Token.fromAddress(tokenIn, sourceChain)
-    const expectedIn = topUpAmountOut.toTokenAmount(tokenInMeta).unwrap()
+    const topUpAmountOut = TokenAmount.fromBigInt(tokenOut, amountOut)
+    const minAmountOut = topUpAmountOut.applySlippageBps(inputs.slippageBps)
+    const amountIn = topUpAmountOut.toTokenAmount(tokenIn).unwrap()
 
-    SwapBuilder.forChains(sourceChain, destinationChain)
-      .addTokenInFromTokenAmount(expectedIn)
+    SwapBuilder.forChains(inputs.sourceChain, inputs.destinationChain)
+      .addTokenInFromTokenAmount(amountIn)
       .addTokenOutFromTokenAmount(minAmountOut, inputs.recipient)
-      .addUser(context.user)
       .build()
       .send()
   }
