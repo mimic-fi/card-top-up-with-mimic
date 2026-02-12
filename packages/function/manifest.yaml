@@ -1,0 +1,15 @@
+version: 1.0.4
+name: Card top up
+description: Automatically tops up a recipient by transferring funds when their balance falls below a threshold.
+inputs:
+  - sourceChain: uint32
+  - sourceToken: address
+  - destinationChain: uint32
+  - destinationToken: address
+  - thresholdAmount: string        # e.g., '10.5' = 10.5 USDC
+  - targetAmount: string
+  - recipient: address
+  - maxFee: string                 # e.g., '0.01' = 0.01 USDC
+  - slippageBps: uint16            # e.g., 50 = 0.50%
+abis: 
+  - ERC20: './abis/ERC20.json'

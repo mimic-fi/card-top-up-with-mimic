@@ -6,7 +6,7 @@ export interface Execution {
   description: string
   createdAt: Date
   result: string
-  url: string
+  url?: string
 }
 
 export async function findCurrentTrigger(signer: string, active = true): Promise<Trigger | null> {
@@ -21,13 +21,22 @@ export async function findExecutions(signer: string): Promise<Execution[]> {
   const executions = await sdk().executions.get({ triggerSig: trigger.sig })
   return Promise.all(
     executions.map(async (execution) => {
-      const output = execution.outputs[0]
-      const intent = await sdk().intents.getByHash(output.hash)
-      return {
-        description: trigger.description,
-        createdAt: execution.createdAt,
-        result: intent.status,
-        url: `https://protocol.mimic.fi/intents/${intent.hash}`,
+      if (execution.outputs.length == 0) {
+        return {
+          description: `${trigger.description} ${execution.logs?.[0]?.replace('[Info] ', '')}`,
+          createdAt: execution.createdAt,
+          result: 'Succeeded',
+          url: `https://protocol.mimic.fi/executions/${execution.hash}`,
+        }
+      } else {
+        const output = execution.outputs[0]
+        const intent = await sdk().intents.getByHash(output.hash)
+        return {
+          description: trigger.description,
+          createdAt: execution.createdAt,
+          result: intent.status,
+          url: `https://protocol.mimic.fi/intents/${intent.hash}`,
+        }
       }
     })
   )

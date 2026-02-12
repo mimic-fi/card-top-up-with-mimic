@@ -26,11 +26,13 @@
 In this example, the card balance is monitored and, when it falls below a configured threshold, a top-up is triggered automatically. The funding source can be any supported token on any supported chain.
 
 The application defines:
+
 - Top-up threshold (minimum balance)
 - Target balance (top up to this value)
 - Funding preferences (token, chain, limits)
 
 The application does not implement:
+
 - Automation scheduling or trigger execution
 - Cross-chain execution flows
 - Token swaps from arbitrary tokens into the settlement asset
@@ -41,6 +43,7 @@ The application does not implement:
 - RPC connections or oracle integrations
 
 Mimic handles execution by abstracting:
+
 - Threshold-based automation triggers
 - Cross-chain routing (when the funding token is on a different chain)
 - Token swaps and settlement operations required for the top-up
@@ -51,7 +54,9 @@ This allows a card program to implement top-up policies and user preferences whi
 
 ## Scope
 
-Mimic supports execution across multiple chains, including cross-chain top-up flows where the funding token and the settlement asset are on different networks. The same top-up model can be applied to other supported networks without changes to execution orchestration.
+This example uses Ethereum as the reference chain.
+
+Mimic supports execution across multiple chains, including cross-chain payment flows. The same subscription model applies to other supported networks.
 
 ## Setup
 

@@ -20,8 +20,9 @@ import { TOKENS, type Token } from '@/lib/tokens'
 import { WagmiSigner } from '@/lib/wagmi-signer'
 import { useSmartAccountCheck } from '@/hooks/use-smart-account-check'
 
-import { topUp, cancel } from '@/lib/top-up'
+import { topUp, deactivate, CRON_SCHEDULES, Frequency, getFrequencyFromSchedule } from '@/lib/top-up'
 import { findCurrentTrigger } from '@/lib/functions'
+import { capitalize } from '@/lib/utils'
 
 export function Form() {
   const { toast } = useToast()
@@ -36,8 +37,9 @@ export function Form() {
   const [targetAmount, setTargetAmount] = useState('')
   const [thresholdAmount, setThresholdAmount] = useState('')
   const [recipient, setRecipient] = useState('0xbcE3248eDE29116e4bD18416dcC2DFca668Eeb84')
-  const [slippage, setSlippage] = useState('0.02')
+  const [slippage, setSlippage] = useState('2.0')
   const [maxFee, setMaxFee] = useState('0.1')
+  const [frequency, setFrequency] = useState<Frequency>('hourly')
   const [isLoading, setIsLoading] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [currentTopUp, setCurrentTopUp] = useState<Trigger | null>(null)
@@ -92,11 +94,15 @@ export function Form() {
   useEffect(() => {
     if (!currentTopUp) return
 
+    const config = currentTopUp.config as unknown as { schedule: string }
+    const frequencyFound = getFrequencyFromSchedule(config.schedule)
+    if (frequencyFound) setFrequency(frequencyFound)
+
     const inputs = currentTopUp.input
     setTargetAmount(String(inputs.targetAmount))
     setThresholdAmount(String(inputs.thresholdAmount))
     setMaxFee(String(inputs.maxFee))
-    setSlippage(String(inputs.slippage))
+    setSlippage(String(Number(inputs.slippageBps || 0) / 100))
     setRecipient(String(inputs.recipient))
 
     const sourceChainFound = Object.values(CHAINS).find((chain: Chain) => chain.id == inputs.sourceChain)
@@ -172,6 +178,7 @@ export function Form() {
         recipient,
         maxFee,
         slippage,
+        frequency,
         signer,
       }
       const trigger = await topUp(params)
@@ -207,7 +214,7 @@ export function Form() {
 
     try {
       const params = { trigger: currentTopUp, signer }
-      await cancel(params)
+      await deactivate(params)
 
       toast({
         title: 'Top-up Cancelled',
@@ -299,18 +306,19 @@ export function Form() {
                       <Input
                         id="slippage-setting"
                         type="number"
-                        placeholder="0.1"
+                        placeholder="0.5"
                         value={slippage}
                         onChange={(e) => setSlippage(e.target.value)}
                         className="h-11 bg-secondary/50 border-border"
+                        step="0.1"
                         min="0"
-                        step="0.01"
+                        max="100"
                         disabled={isFormDisabled}
                       />
-                      <span className="text-muted-foreground"> %</span>
+                      <span className="text-muted-foreground">%</span>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Maximum slippage you{"'"}re willing to pay per swap.
+                      Your transaction will revert if the price changes unfavorably by more than this percentage.
                     </p>
                   </div>
                 )}
@@ -380,10 +388,10 @@ export function Form() {
               <Label className="text-muted-foreground">Destination Token</Label>
             </div>
             <div className="w-36 shrink-0">
-              <Label className="text-muted-foreground">Threshold</Label>
+              <Label className="text-muted-foreground">Target</Label>
             </div>
             <div className="flex-1 min-w-0">
-              <Label className="text-muted-foreground">Target</Label>
+              <Label className="text-muted-foreground">Threshold</Label>
             </div>
           </div>
 
@@ -414,6 +422,24 @@ export function Form() {
                 disabled={isFormDisabled}
               />
             </div>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <Label className="text-muted-foreground">Frequency</Label>
+          <div className="flex gap-2 flex-wrap">
+            {(Object.keys(CRON_SCHEDULES) as Frequency[]).map((f) => (
+              <Button
+                key={f}
+                type="button"
+                variant={frequency === f ? 'default' : 'secondary'}
+                className="rounded-xl"
+                onClick={() => setFrequency(f)}
+                disabled={isFormDisabled}
+              >
+                {capitalize(f)}
+              </Button>
+            ))}
           </div>
         </div>
 
