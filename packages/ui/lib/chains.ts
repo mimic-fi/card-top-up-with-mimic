@@ -1,6 +1,7 @@
 const CHAINS_DICTIONARY: Record<string, { id: number; name: string; icon: string }> = {
   arbitrum: { id: 42161, name: 'Arbitrum', icon: 'https://icons.llamao.fi/icons/chains/rsz_arbitrum.jpg' },
   base: { id: 8453, name: 'Base', icon: 'https://icons.llamao.fi/icons/chains/rsz_base.jpg' },
+  gnosis: { id: 100, name: 'Gnosis', icon: 'https://icons.llamao.fi/icons/chains/rsz_xdai.jpg' },
   optimism: { id: 10, name: 'Optimism', icon: 'https://icons.llamao.fi/icons/chains/rsz_optimism.jpg' },
 }
 
