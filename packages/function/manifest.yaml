@@ -1,4 +1,4 @@
-version: 1.0.3
+version: 1.0.4
 name: Card top up
 description: Automatically tops up a recipient by transferring funds when their balance falls below a threshold.
 inputs:

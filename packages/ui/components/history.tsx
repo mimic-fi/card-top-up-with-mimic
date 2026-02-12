@@ -90,14 +90,16 @@ export function History() {
                     {getResultIcon(execution.result)} {capitalize(execution.result)}
                   </div>
                 </div>
-                <a
-                  href={execution.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-violet-500 hover:text-violet-400 transition-colors"
-                >
-                  <ExternalLink className="h-5 w-5" />
-                </a>
+                {execution.url && (
+                  <a
+                    href={execution.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-violet-500 hover:text-violet-400 transition-colors"
+                  >
+                    <ExternalLink className="h-5 w-5" />
+                  </a>
+                )}
               </div>
             </div>
           ))}
