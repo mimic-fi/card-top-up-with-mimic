@@ -23,6 +23,7 @@ import { useSmartAccountCheck } from '@/hooks/use-smart-account-check'
 import { topUp, deactivate, CRON_SCHEDULES, Frequency, getFrequencyFromSchedule } from '@/lib/top-up'
 import { findCurrentTrigger } from '@/lib/functions'
 import { capitalize } from '@/lib/utils'
+import { useTokenBalance } from '@/hooks/use-token-balance'
 
 export function Form() {
   const { toast } = useToast()
@@ -44,6 +45,7 @@ export function Form() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [currentTopUp, setCurrentTopUp] = useState<Trigger | null>(null)
   const [isLoadingCurrentTopUp, setIsLoadingCurrentTopUp] = useState(false)
+  const { tokenBalance, isTokenBalanceLoading } = useTokenBalance(destinationChain, destinationToken)
   const { isSmartAccount, isSmartAccountLoading } = useSmartAccountCheck(sourceChain)
   const isFormDisabled = isLoadingCurrentTopUp || !!currentTopUp
 
@@ -355,8 +357,11 @@ export function Form() {
             <div className="w-36 shrink-0">
               <Label className="text-muted-foreground">Source Token</Label>
             </div>
+            <div className="w-36 shrink-0">
+              <Label className="text-muted-foreground">Destination Chain</Label>
+            </div>
             <div className="flex-1 min-w-0">
-              <Label className="text-muted-foreground">Recipient</Label>
+              <Label className="text-muted-foreground">Destination Token</Label>
             </div>
           </div>
 
@@ -366,6 +371,49 @@ export function Form() {
             </div>
             <div className={`w-36 shrink-0 ${isFormDisabled ? 'pointer-events-none opacity-70' : ''}`}>
               <TokenSelector chain={sourceChain} value={sourceToken} onChange={setSourceToken} />
+            </div>
+            <div className={`w-36 shrink-0 ${isFormDisabled ? 'pointer-events-none opacity-70' : ''}`}>
+              <ChainSelector value={destinationChain} onChange={setDestinationChain} />
+            </div>
+            <div className={`flex-1 min-w-0 ${isFormDisabled ? 'pointer-events-none opacity-70' : ''}`}>
+              <TokenSelector chain={destinationChain} value={destinationToken} onChange={setDestinationToken} />
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <div className="flex gap-2 items-center">
+            <div className="w-36 shrink-0">
+              <Label className="text-muted-foreground">Threshold</Label>
+            </div>
+            <div className="w-36 shrink-0">
+              <Label className="text-muted-foreground">Target</Label>
+            </div>
+            <div className="flex-1 min-w-0">
+              <Label className="text-muted-foreground">Card Address</Label>
+            </div>
+          </div>
+
+          <div className="flex gap-2 items-center">
+            <div className="w-36 shrink-0">
+              <Input
+                type="number"
+                placeholder="0.0"
+                value={thresholdAmount}
+                onChange={(e) => setThresholdAmount(e.target.value)}
+                className="h-12 bg-secondary/50 border-border text-lg text-right"
+                disabled={isFormDisabled}
+              />
+            </div>
+            <div className="w-36 shrink-0">
+              <Input
+                type="number"
+                placeholder="0.0"
+                value={targetAmount}
+                onChange={(e) => setTargetAmount(e.target.value)}
+                className="h-12 bg-secondary/50 border-border text-lg text-right"
+                disabled={isFormDisabled}
+              />
             </div>
             <div className="flex-1 min-w-0">
               <Input
@@ -377,50 +425,15 @@ export function Form() {
               />
             </div>
           </div>
-        </div>
-
-        <div className="space-y-3">
-          <div className="flex gap-2 items-center">
-            <div className="w-36 shrink-0">
-              <Label className="text-muted-foreground">Destination Chain</Label>
-            </div>
-            <div className="w-36 shrink-0">
-              <Label className="text-muted-foreground">Destination Token</Label>
-            </div>
-            <div className="w-36 shrink-0">
-              <Label className="text-muted-foreground">Target</Label>
-            </div>
-            <div className="flex-1 min-w-0">
-              <Label className="text-muted-foreground">Threshold</Label>
-            </div>
-          </div>
-
-          <div className="flex gap-2 items-center">
-            <div className={`w-36 shrink-0 ${isFormDisabled ? 'pointer-events-none opacity-70' : ''}`}>
-              <ChainSelector value={destinationChain} onChange={setDestinationChain} />
-            </div>
-            <div className={`w-36 shrink-0 ${isFormDisabled ? 'pointer-events-none opacity-70' : ''}`}>
-              <TokenSelector chain={destinationChain} value={destinationToken} onChange={setDestinationToken} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <Input
-                type="number"
-                placeholder="0.0"
-                value={targetAmount}
-                onChange={(e) => setTargetAmount(e.target.value)}
-                className="h-12 bg-secondary/50 border-border text-lg text-right"
-                disabled={isFormDisabled}
-              />
-            </div>
-            <div className="w-36 shrink-0">
-              <Input
-                type="number"
-                placeholder="0.0"
-                value={thresholdAmount}
-                onChange={(e) => setThresholdAmount(e.target.value)}
-                className="h-12 bg-secondary/50 border-border text-lg text-right"
-                disabled={isFormDisabled}
-              />
+          <div className="flex justify-end">
+            <div className="w-56 text-xs text-muted-foreground text-right pr-2">
+              {isConnected
+                ? isTokenBalanceLoading
+                  ? 'Fetching balance…'
+                  : tokenBalance
+                    ? `${destinationToken.symbol} Balance in ${destinationChain.name}: ${tokenBalance}`
+                    : '.'
+                : '...'}
             </div>
           </div>
         </div>
